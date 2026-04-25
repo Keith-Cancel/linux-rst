@@ -7,7 +7,7 @@
 
 mod arch;
 
-pub mod fcntl;
+pub mod fs;
 
 /// Linux errno values.
 pub use crate::arch::errno;
