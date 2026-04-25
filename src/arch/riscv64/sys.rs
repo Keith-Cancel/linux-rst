@@ -1,13 +1,13 @@
 use core::arch::asm;
 
-use super::sys_call;
+use super::def_sys_call;
 
 /// System call register.
 pub type Reg = u64;
 
 // System call number
 // https://gpages.juszkiewicz.com.pl/syscalls-table/syscalls.html
-sys_call! {
+def_sys_call! {
     read:       63,
     write:      64,
     close:      57,

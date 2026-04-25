@@ -2,8 +2,8 @@ mod sys;
 
 pub use sys::*;
 
+use super::def_sys_call;
 use super::generic;
-use super::sys_call;
 
 pub mod errno {
     // No over-rides

@@ -1,13 +1,13 @@
 use core::arch::asm;
 
-use super::sys_call;
+use super::def_sys_call;
 
 /// System call register.
 pub type Reg = u64;
 
 // System call number
 // https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#arm64-64_bit
-sys_call! {
+def_sys_call! {
     read:       63,
     write:      64,
     close:      57,

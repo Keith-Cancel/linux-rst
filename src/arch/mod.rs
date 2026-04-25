@@ -21,7 +21,7 @@ config_match! {
 }
 
 #[rustfmt::skip]
-macro_rules! sys_call {
+macro_rules! def_sys_call {
     (
         read: $read:expr,
         write: $write:expr,
@@ -69,4 +69,4 @@ macro_rules! sys_call {
         }
     };
 }
-pub(crate) use sys_call;
+pub(crate) use def_sys_call;
