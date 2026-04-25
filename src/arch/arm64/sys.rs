@@ -11,6 +11,7 @@ def_sys_call! {
     read:       63,
     write:      64,
     close:      57,
+    dup:        23,
     open_at:    56,
     unlink_at:  35,
     exit:       93,

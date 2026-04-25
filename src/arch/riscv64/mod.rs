@@ -10,7 +10,6 @@ pub mod errno {
     pub use super::generic::errno::*;
 }
 
-#[allow(unused)]
 pub mod fcntl {
     // No over-rides
     pub use super::generic::fcntl::*;

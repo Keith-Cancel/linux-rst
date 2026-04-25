@@ -11,7 +11,6 @@ pub mod errno {
 }
 
 // https://github.com/torvalds/linux/blob/master/arch/arm64/include/uapi/asm/fcntl.h
-#[allow(unused)]
 pub mod fcntl {
     use core::ffi::c_int;
 

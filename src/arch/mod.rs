@@ -23,19 +23,20 @@ config_match! {
 #[rustfmt::skip]
 macro_rules! def_sys_call {
     (
-        read: $read:expr,
-        write: $write:expr,
-        close: $close:expr,
-        open_at: $open_at:expr,
-        unlink_at: $unlink_at:expr,
-        exit: $exit:expr,
+        read:       $read:expr,
+        write:      $write:expr,
+        close:      $close:expr,
+        dup:        $dup:expr,
+        open_at:    $open_at:expr,
+        unlink_at:  $unlink_at:expr,
+        exit:       $exit:expr,
         exit_group: $exit_grp:expr,
-        socket: $socket:expr,
-        connect: $connect:expr,
-        accept: $accept:expr,
-        bind: $bind:expr,
-        listen: $listen:expr,
-        prctl: $prctl:expr
+        socket:     $socket:expr,
+        connect:    $connect:expr,
+        accept:     $accept:expr,
+        bind:       $bind:expr,
+        listen:     $listen:expr,
+        prctl:      $prctl:expr
         $(,)?
     ) => {
         /// A system call number
@@ -48,6 +49,7 @@ macro_rules! def_sys_call {
             pub const READ:       Self = Self($read);
             pub const WRITE:      Self = Self($write);
             pub const CLOSE:      Self = Self($close);
+            pub const DUP:        Self = Self($dup);
             pub const OPEN_AT:    Self = Self($open_at);
             pub const UNLINK_AT:  Self = Self($unlink_at);
             pub const EXIT:       Self = Self($exit);
