@@ -5,7 +5,6 @@ pub use sys::*;
 use super::generic;
 use super::sys_call;
 
-#[allow(unused)]
 pub mod errno {
     // No over-rides
     pub use super::generic::errno::*;
@@ -31,4 +30,9 @@ pub mod fcntl {
 pub mod limits {
     // No over-rides
     pub use super::generic::limits::*;
+}
+
+pub mod posix_types {
+    // No over-rides yet.
+    pub use super::generic::posix_types::*;
 }
