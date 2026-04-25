@@ -5,3 +5,6 @@ edition = "2024"
 
 [lib]
 doctest = false
+
+[dependencies]
+decl_macros = { path = "../../util/decl_macros" }
