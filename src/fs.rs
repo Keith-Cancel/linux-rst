@@ -20,7 +20,7 @@ pub unsafe fn openat(dirfd: c_int, path: *const c_char, flags: c_int, mode: mode
     return Ok(ret);
 }
 
-/// Unlike the file at `path`, but relative to file descriptor of a directory.
+/// Unlink the file at `path`, but relative to file descriptor of a directory.
 pub unsafe fn unlinkat(dirfd: c_int, path: *const c_char, flags: c_int) -> ErrResult {
     let ret = syscall!(dirfd, path as usize, flags, UNLINK_AT) as c_int;
     if ret < 0 {
