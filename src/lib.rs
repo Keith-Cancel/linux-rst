@@ -9,7 +9,6 @@ mod arch;
 
 pub mod fs;
 
-/// Linux errno values.
 pub use crate::arch::errno;
 
 /// Basic types.
@@ -17,6 +16,7 @@ pub mod types {
     pub use crate::arch::posix_types::*;
 }
 
+/// Linux errno values.
 pub mod error {
     use core::ffi::c_int;
 
