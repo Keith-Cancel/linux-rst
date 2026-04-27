@@ -6,7 +6,7 @@ use core::ffi::c_int;
 
 use crate::arch::posix_types::mode_t;
 use crate::arch::syscall;
-use crate::types::ErrResult;
+use crate::error::ErrResult;
 
 #[rustfmt::skip]
 pub use crate::arch::fcntl::*;

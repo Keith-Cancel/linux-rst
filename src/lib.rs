@@ -15,6 +15,12 @@ pub use crate::arch::errno;
 /// Basic types.
 pub mod types {
     pub use crate::arch::posix_types::*;
+}
 
-    pub type ErrResult<T = ()> = Result<T, core::ffi::c_int>;
+pub mod error {
+    use core::ffi::c_int;
+
+    pub use crate::arch::errno::*;
+    pub type ErrNo = c_int;
+    pub type ErrResult<T = ()> = Result<T, ErrNo>;
 }
