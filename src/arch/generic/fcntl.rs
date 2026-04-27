@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use core::ffi::c_int;
 
 pub use no_fmt::*;

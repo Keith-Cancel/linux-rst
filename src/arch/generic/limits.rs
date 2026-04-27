@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 // https://github.com/torvalds/linux/blob/master/include/uapi/linux/limits.h
 
 /// Max character limit for a file name

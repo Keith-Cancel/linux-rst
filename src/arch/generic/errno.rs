@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 pub use base::*;
 pub use generic::*;
 

@@ -9,7 +9,8 @@ mod arch;
 
 pub mod fs;
 
-pub use crate::arch::errno;
+/// System limits.
+pub use arch::limits;
 
 /// Basic types.
 pub mod types {
