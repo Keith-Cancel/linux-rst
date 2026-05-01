@@ -77,13 +77,8 @@ macro_rules! syscall {
     ($num:ident) => {
         crate::arch::call0(crate::arch::SysCall::$num)
     };
-    ($arg0:expr, $num:ident) => {{
-        debug_assert!(crate::arch::Reg::try_from($arg0).is_ok());
-        unsafe { crate::arch::call1($arg0 as crate::arch::Reg, crate::arch::SysCall::$num) }
-    }};
+    ($arg0:expr, $num:ident) => {{ unsafe { crate::arch::call1($arg0 as crate::arch::Reg, crate::arch::SysCall::$num) } }};
     ($arg0:expr, $arg1:expr, $num:ident) => {{
-        debug_assert!(crate::arch::Reg::try_from($arg0).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg1).is_ok());
         unsafe {
             crate::arch::call2(
                 $arg0 as crate::arch::Reg,
@@ -93,9 +88,6 @@ macro_rules! syscall {
         }
     }};
     ($arg0:expr, $arg1:expr, $arg2:expr, $num:ident) => {{
-        debug_assert!(crate::arch::Reg::try_from($arg0).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg1).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg2).is_ok());
         unsafe {
             crate::arch::call3(
                 $arg0 as crate::arch::Reg,
@@ -106,10 +98,6 @@ macro_rules! syscall {
         }
     }};
     ($arg0:expr, $arg1:expr, $arg2:expr, $arg3:expr, $num:ident) => {{
-        debug_assert!(crate::arch::Reg::try_from($arg0).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg1).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg2).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg3).is_ok());
         unsafe {
             crate::arch::call4(
                 $arg0 as crate::arch::Reg,
@@ -121,11 +109,6 @@ macro_rules! syscall {
         }
     }};
     ($arg0:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $num:ident) => {{
-        debug_assert!(crate::arch::Reg::try_from($arg0).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg1).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg2).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg3).is_ok());
-        debug_assert!(crate::arch::Reg::try_from($arg4).is_ok());
         unsafe {
             crate::arch::call5(
                 $arg0 as crate::arch::Reg,
