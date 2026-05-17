@@ -4,6 +4,7 @@
 use core::ffi::c_char;
 use core::ffi::c_int;
 
+use crate::arch::Reg;
 use crate::arch::posix_types::mode_t;
 use crate::arch::syscall;
 use crate::error::ErrResult;
@@ -13,16 +14,25 @@ pub use crate::arch::fcntl::*;
 
 /// Opens a file, but relative to a file descriptor of a directory.
 pub unsafe fn openat(dirfd: c_int, path: *const c_char, flags: c_int, mode: mode_t) -> ErrResult<c_int> {
-    let ret = syscall!(dirfd, path as usize, flags, mode, OPEN_AT) as c_int;
+    let ret = syscall!(dirfd, path as Reg, flags, mode, OPEN_AT) as c_int;
     if ret < 0 {
         return Err(-ret);
     }
     return Ok(ret);
 }
 
+/// Make a directory, but relative to file descriptor of a directory.
+pub unsafe fn mkdirat(dirfd: c_int, path: *const c_char, mode: mode_t) -> ErrResult {
+    let ret = syscall!(dirfd, path as Reg, mode, MKDIR_AT) as c_int;
+    if ret < 0 {
+        return Err(-ret);
+    }
+    return Ok(());
+}
+
 /// Unlink the file at `path`, but relative to file descriptor of a directory.
 pub unsafe fn unlinkat(dirfd: c_int, path: *const c_char, flags: c_int) -> ErrResult {
-    let ret = syscall!(dirfd, path as usize, flags, UNLINK_AT) as c_int;
+    let ret = syscall!(dirfd, path as Reg, flags, UNLINK_AT) as c_int;
     if ret < 0 {
         return Err(-ret);
     }
@@ -40,7 +50,7 @@ pub unsafe fn close(fd: c_int) -> ErrResult {
 
 /// Read data from a file descriptor.
 pub unsafe fn read(fd: c_int, buff: *mut u8, len: usize) -> ErrResult<usize> {
-    let ret = syscall!(fd, buff as usize, len, READ) as isize;
+    let ret = syscall!(fd, buff as Reg, len, READ) as isize;
     if ret < 0 {
         return Err((-ret) as c_int);
     }
@@ -49,7 +59,7 @@ pub unsafe fn read(fd: c_int, buff: *mut u8, len: usize) -> ErrResult<usize> {
 
 /// Write data to a file descriptor.
 pub unsafe fn write(fd: c_int, buff: *const u8, len: usize) -> ErrResult<usize> {
-    let ret = syscall!(fd, buff as usize, len, WRITE) as isize;
+    let ret = syscall!(fd, buff as Reg, len, WRITE) as isize;
     if ret < 0 {
         return Err((-ret) as c_int);
     }
