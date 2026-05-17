@@ -13,6 +13,7 @@ def_sys_call! {
     close:      57,
     dup:        23,
     open_at:    56,
+    mkdir_at:   34,
     unlink_at:  35,
     exit:       93,
     exit_group: 94,

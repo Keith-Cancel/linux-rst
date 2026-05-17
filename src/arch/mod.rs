@@ -28,6 +28,7 @@ macro_rules! def_sys_call {
         close:      $close:expr,
         dup:        $dup:expr,
         open_at:    $open_at:expr,
+        mkdir_at:   $mkdir_at:expr,
         unlink_at:  $unlink_at:expr,
         exit:       $exit:expr,
         exit_group: $exit_grp:expr,
@@ -51,6 +52,7 @@ macro_rules! def_sys_call {
             pub const CLOSE:      Self = Self($close);
             pub const DUP:        Self = Self($dup);
             pub const OPEN_AT:    Self = Self($open_at);
+            pub const MKDIR_AT:   Self = Self($mkdir_at);
             pub const UNLINK_AT:  Self = Self($unlink_at);
             pub const EXIT:       Self = Self($exit);
             pub const EXIT_GROUP: Self = Self($exit_grp);
