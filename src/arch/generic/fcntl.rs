@@ -2,7 +2,9 @@ use core::ffi::c_int;
 
 pub use no_fmt::*;
 
+// https://github.com/torvalds/linux/blob/master/include/uapi/linux/fcntl.h
 // https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/fcntl.h
+
 #[rustfmt::skip]
 pub mod no_fmt {
     use core::ffi::c_int;
@@ -34,7 +36,6 @@ pub mod no_fmt {
     pub const O_TMPFILE:   c_int = __O_TMPFILE | O_DIRECTORY;
     pub const O_NDELAY:    c_int = O_NONBLOCK;
 }
-
 /// Special file descriptor value to tell open should be relative
 /// to the current working directory.
 pub const AT_FDCWD: c_int = -100;
