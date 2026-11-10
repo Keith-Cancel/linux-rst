@@ -1,3 +1,4 @@
+//! Functions and constants related to controlling processes.
 use core::ffi::c_int;
 
 use crate::arch::Reg;

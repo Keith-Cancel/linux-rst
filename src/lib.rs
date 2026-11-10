@@ -25,7 +25,6 @@ pub mod types {
 pub mod sys {
     /// Native register type.
     pub use crate::arch::Reg;
-    /// A system call number.
     pub use crate::arch::SysCall;
     /// Perform a raw system call with no arguments.
     pub use crate::arch::call0;

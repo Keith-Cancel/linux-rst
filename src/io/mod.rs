@@ -1,3 +1,4 @@
+//! Input/output functions and constants.
 use crate::error::Errno;
 use crate::fd::AsFdRef;
 use crate::fd::AsRawFd;
