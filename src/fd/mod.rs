@@ -26,6 +26,16 @@ impl AsRawFd for Fd {
     }
 }
 
+impl AsFdRef for Fd {
+    #[inline(always)]
+    fn as_fd_ref<'a>(&'a self) -> FdRef<'a> {
+        return FdRef {
+            fd:  self.0,
+            _pd: PhantomData,
+        };
+    }
+}
+
 impl FromRawFd for Fd {
     #[inline(always)]
     unsafe fn from_raw_fd(fd: c_int) -> Self {
@@ -56,6 +66,13 @@ impl<'a> AsRawFd for FdRef<'a> {
     }
 }
 
+impl AsFdRef for FdRef<'_> {
+    #[inline(always)]
+    fn as_fd_ref(&self) -> FdRef<'_> {
+        return *self;
+    }
+}
+
 /// Allow extracting the raw file descriptor.
 pub trait AsRawFd {
     fn as_raw_fd(&self) -> c_int;
@@ -73,4 +90,10 @@ pub trait FromRawFd {
     /// #Safety
     /// The file descriptor should be exclusive owned by the object.
     unsafe fn from_raw_fd(fd: c_int) -> Self;
+}
+
+/// Borrow a file descriptor.
+pub trait AsFdRef {
+    /// Borrow the file descriptor.
+    fn as_fd_ref(&self) -> FdRef<'_>;
 }
