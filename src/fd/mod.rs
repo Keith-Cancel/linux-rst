@@ -52,6 +52,7 @@ impl IntoRawFd for Fd {
     }
 }
 
+/// A borrowed/referenced file descriptor.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy)]
 pub struct FdRef<'a> {
