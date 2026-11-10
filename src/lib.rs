@@ -11,6 +11,7 @@ pub mod error;
 pub mod fd;
 pub mod fs;
 pub mod io;
+pub mod process;
 
 /// System limits.
 pub use arch::limits;
