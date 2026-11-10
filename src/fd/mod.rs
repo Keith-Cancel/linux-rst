@@ -1,9 +1,10 @@
 //! Managed file descriptor types and traits.
 use core::ffi::c_int;
+use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 
 /// An owned file descriptor.
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug)]
 pub struct Fd(c_int);
 
@@ -33,10 +34,25 @@ impl FromRawFd for Fd {
 }
 
 impl IntoRawFd for Fd {
+    #[inline(always)]
     fn into_raw_fd(self) -> c_int {
         let fd = self.0;
         let _ = ManuallyDrop::new(self);
         return fd;
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy)]
+pub struct FdRef<'a> {
+    fd:  c_int,
+    _pd: PhantomData<&'a Fd>,
+}
+
+impl<'a> AsRawFd for FdRef<'a> {
+    #[inline(always)]
+    fn as_raw_fd(&self) -> c_int {
+        return self.fd;
     }
 }
 
