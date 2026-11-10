@@ -38,30 +38,3 @@ pub unsafe fn unlinkat(dirfd: c_int, path: *const c_char, flags: c_int) -> ErrRe
     }
     return Ok(());
 }
-
-/// Close a file descriptor
-pub unsafe fn close(fd: c_int) -> ErrResult {
-    let ret = syscall!(fd, CLOSE) as c_int;
-    if ret < 0 {
-        return Err(-ret);
-    }
-    return Ok(());
-}
-
-/// Read data from a file descriptor.
-pub unsafe fn read(fd: c_int, buff: *mut u8, len: usize) -> ErrResult<usize> {
-    let ret = syscall!(fd, buff as Reg, len, READ) as isize;
-    if ret < 0 {
-        return Err((-ret) as c_int);
-    }
-    return Ok(ret as usize);
-}
-
-/// Write data to a file descriptor.
-pub unsafe fn write(fd: c_int, buff: *const u8, len: usize) -> ErrResult<usize> {
-    let ret = syscall!(fd, buff as Reg, len, WRITE) as isize;
-    if ret < 0 {
-        return Err((-ret) as c_int);
-    }
-    return Ok(ret as usize);
-}
