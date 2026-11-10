@@ -12,6 +12,15 @@ pub type ErrResult<T = ()> = Result<T, ErrnoRaw>;
 pub struct Errno(NonZeroU32);
 
 impl Errno {
+    /// Create a new [`Errno`] from a raw value.
+    ///
+    /// # Safety
+    /// The raw value must not be zero.
+    #[inline(always)]
+    pub const unsafe fn from_raw_unchecked(e: c_int) -> Self {
+        return Errno(unsafe { NonZeroU32::new_unchecked(e as u32) });
+    }
+
     #[inline(always)]
     pub const fn into_raw(self) -> c_int {
         return self.0.get() as c_int;
