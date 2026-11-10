@@ -12,7 +12,7 @@ pub fn write<F: AsFdRef>(fd: F, buff: &[u8]) -> Result<usize, Errno> {
         Ok(x) => return Ok(x),
         Err(e) => {
             debug_assert!(e > 0);
-            panic!()
+            return unsafe { Err(Errno::from_raw_unchecked(e)) };
         },
     }
 }
