@@ -64,9 +64,15 @@ macro_rules! def_sys_call {
             //pub const FSYNC: Self = Self(74);
             //pub const READLINKAT: Self = Self(267);
             //pub const STATX: Self = Self(332);
+            /// Get the system call number
             #[inline(always)]
             pub const fn get(self) -> Reg {
                 return self.0;
+            }
+            /// Create a new system call from a raw number.
+            #[inline(always)]
+            pub const fn new_raw(no: Reg) -> Self {
+                return Self(no)
             }
         }
     };
