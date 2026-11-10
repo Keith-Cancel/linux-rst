@@ -8,7 +8,7 @@ pub type ErrnoRaw = c_int;
 pub type ErrResult<T = ()> = Result<T, ErrnoRaw>;
 
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Errno(NonZeroU32);
 
 impl Errno {
@@ -304,5 +304,15 @@ impl From<Errno> for c_int {
     #[inline]
     fn from(value: Errno) -> Self {
         return value.into_raw();
+    }
+}
+
+impl core::fmt::Debug for Errno {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // Build the debug representation with only specific fields
+        return f
+            .debug_tuple("Errno")
+            .field(&format_args!("{}: {}", self.0.get(), self.name()))
+            .finish();
     }
 }
