@@ -88,7 +88,7 @@ pub trait IntoRawFd {
 /// Create a new instance from a file descriptor.
 pub trait FromRawFd {
     /// Create a new object from the file descriptor.
-    /// #Safety
+    /// # Safety
     /// The file descriptor should be exclusive owned by the object.
     unsafe fn from_raw_fd(fd: c_int) -> Self;
 }
