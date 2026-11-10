@@ -1,4 +1,5 @@
 //! Raw IO calls
+#![allow(clippy::missing_safety_doc)]
 use core::ffi::c_int;
 
 use crate::arch::Reg;
@@ -24,6 +25,7 @@ pub unsafe fn read(fd: c_int, buff: *mut u8, len: usize) -> ErrResult<usize> {
 }
 
 /// Write data to a file descriptor.
+#[inline]
 pub unsafe fn write(fd: c_int, buff: *const u8, len: usize) -> ErrResult<usize> {
     let ret = syscall!(fd, buff as Reg, len, WRITE) as isize;
     if ret < 0 {
