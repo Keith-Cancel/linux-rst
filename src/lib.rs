@@ -7,7 +7,9 @@
 
 mod arch;
 
+pub mod fd;
 pub mod fs;
+pub mod io;
 
 /// System limits.
 pub use arch::limits;
