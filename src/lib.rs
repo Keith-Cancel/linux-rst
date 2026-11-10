@@ -22,6 +22,6 @@ pub mod error {
     use core::ffi::c_int;
 
     pub use crate::arch::errno::*;
-    pub type ErrNo = c_int;
-    pub type ErrResult<T = ()> = Result<T, ErrNo>;
+    pub type ErrnoRaw = c_int;
+    pub type ErrResult<T = ()> = Result<T, ErrnoRaw>;
 }
