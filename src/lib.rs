@@ -7,6 +7,7 @@
 
 mod arch;
 
+pub mod error;
 pub mod fd;
 pub mod fs;
 pub mod io;
@@ -17,13 +18,4 @@ pub use arch::limits;
 /// Basic types.
 pub mod types {
     pub use crate::arch::posix_types::*;
-}
-
-/// Linux errno values.
-pub mod error {
-    use core::ffi::c_int;
-
-    pub use crate::arch::errno::*;
-    pub type ErrnoRaw = c_int;
-    pub type ErrResult<T = ()> = Result<T, ErrnoRaw>;
 }
