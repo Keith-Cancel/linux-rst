@@ -25,7 +25,26 @@ impl Errno {
     pub const fn into_raw(self) -> c_int {
         return self.0.get() as c_int;
     }
+}
 
+impl From<Errno> for c_int {
+    #[inline]
+    fn from(value: Errno) -> Self {
+        return value.into_raw();
+    }
+}
+
+impl core::fmt::Debug for Errno {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // Build the debug representation with only specific fields
+        return f
+            .debug_tuple("Errno")
+            .field(&format_args!("{}: {}", self.0.get(), self.name()))
+            .finish();
+    }
+}
+
+impl Errno {
     pub const fn name(&self) -> &'static str {
         let e = self.0.get() as c_int;
         #[rustfmt::skip]
@@ -306,22 +325,5 @@ impl Errno {
             _               => "Unknown error code",
         };
         return s;
-    }
-}
-
-impl From<Errno> for c_int {
-    #[inline]
-    fn from(value: Errno) -> Self {
-        return value.into_raw();
-    }
-}
-
-impl core::fmt::Debug for Errno {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        // Build the debug representation with only specific fields
-        return f
-            .debug_tuple("Errno")
-            .field(&format_args!("{}: {}", self.0.get(), self.name()))
-            .finish();
     }
 }
