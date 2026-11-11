@@ -37,10 +37,18 @@ build_target() {
   local label="$1"
   local arch="$2"
   local bits="$3"
-  echo $label $arch $bits
+
+  local build="$TARGET_DIR/build/$label"
+  local install="$TARGET_DIR/install/$label"
+
+  mkdir -p $build
+  mkdir -p $install
+
+  echo Label: $label Arch: $arch Bits: $bits
+  make O="$build" ARCH="$arch" headers_install INSTALL_HDR_PATH="$install"
 }
 
 build_target "x86_64"  "x86"    64
 build_target "arm64"   "arm64"  64
 build_target "riscv64" "riscv"  64
-build_target "riscv64" "riscv"  32
+build_target "riscv32" "riscv"  32
