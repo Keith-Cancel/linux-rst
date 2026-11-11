@@ -8,5 +8,11 @@ mkdir -p "$TARGET_DIR"
 git init -b master "$TARGET_DIR"
 cd "$TARGET_DIR"
 
-echo "Getting Linux headers from: '$REPO_URL'"
-git remote add origin "$REPO_URL"
+# check if orgin exists if so just set.
+if git remote get-url origin >/dev/null 2>&1; then
+  echo "Setting Repo Orgin to: '$REPO_URL'"
+  git remote set-url origin "$REPO_URL"
+else
+  echo "Adding Repo Origin of: '$REPO_URL'"
+  git remote add origin "$REPO_URL"
+fi
