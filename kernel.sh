@@ -28,11 +28,6 @@ git sparse-checkout set --cone \
 git fetch --depth=1 origin master
 git checkout -B master FETCH_HEAD
 
-#for arch in "${ARCHS[@]}"; do
-#  echo "Generating headers for ARCH=$arch"
-#  make O="build-$arch" ARCH="$arch" headers_install INSTALL_HDR_PATH="$TARGET_DIR/${arch}_hdrs"
-#done
-
 build_target() {
   local label="$1"
   local arch="$2"
@@ -44,11 +39,12 @@ build_target() {
   mkdir -p $build
   mkdir -p $install
 
-  echo Label: $label Arch: $arch Bits: $bits
+  echo Label: $label Arch: $arch
+
+  #https://docs.kernel.org/kbuild/headers_install.html
   make O="$build" ARCH="$arch" headers_install INSTALL_HDR_PATH="$install"
 }
 
-build_target "x86_64"  "x86"    64
-build_target "arm64"   "arm64"  64
-build_target "riscv64" "riscv"  64
-build_target "riscv32" "riscv"  32
+build_target "x86_64"  "x86"  
+build_target "arm64"   "arm64"
+build_target "riscv"   "riscv"
