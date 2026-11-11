@@ -16,3 +16,14 @@ else
   echo "Adding Repo Origin of: '$REPO_URL'"
   git remote add origin "$REPO_URL"
 fi
+
+git sparse-checkout set --cone \
+  include \
+  scripts \
+  tools \
+  arch/x86 \
+  arch/arm64 \
+  arch/riscv
+
+git fetch --depth=1 origin master
+git checkout -B master FETCH_HEAD
