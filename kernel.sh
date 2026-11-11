@@ -31,7 +31,6 @@ git checkout -B master FETCH_HEAD
 build_target() {
   local label="$1"
   local arch="$2"
-  local bits="$3"
 
   local build="$TARGET_DIR/build/$label"
   local install="$TARGET_DIR/install/$label"
