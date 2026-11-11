@@ -3,7 +3,6 @@ set -euo pipefail
 
 TARGET_DIR="$(pwd)/kernel"
 REPO_URL="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
-ARCHS=("x86_64" "arm64" "riscv")
 
 mkdir -p "$TARGET_DIR"
 git init -b master "$TARGET_DIR"
@@ -29,7 +28,19 @@ git sparse-checkout set --cone \
 git fetch --depth=1 origin master
 git checkout -B master FETCH_HEAD
 
-for arch in "${ARCHS[@]}"; do
-  echo "Generating headers for ARCH=$arch"
-  make O="build-$arch" ARCH="$arch" headers
-done
+#for arch in "${ARCHS[@]}"; do
+#  echo "Generating headers for ARCH=$arch"
+#  make O="build-$arch" ARCH="$arch" headers_install INSTALL_HDR_PATH="$TARGET_DIR/${arch}_hdrs"
+#done
+
+build_target() {
+  local label="$1"
+  local arch="$2"
+  local bits="$3"
+  echo $label $arch $bits
+}
+
+build_target "x86_64"  "x86"    64
+build_target "arm64"   "arm64"  64
+build_target "riscv64" "riscv"  64
+build_target "riscv64" "riscv"  32
