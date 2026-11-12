@@ -61,3 +61,7 @@ rustc-ice-*.txt
 *.su
 *.idb
 *.pdb
+
+# Directories
+build
+kernel
