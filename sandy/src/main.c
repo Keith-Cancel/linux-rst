@@ -13,13 +13,25 @@ static void usage(const char *prog) {
         "Minimal process sandbox. I wrote this more for fun, not because\n"
         "I needed since there otherw ways I could achieve similar.\n"
         "Options (before --):\n"
-        "  --help                  Show this help\n",
+        "  --help                   Show this help\n"
+        "  --bindf    HOST TARGET   Bind HOST file as read only at TARGET\n"
+        "  --rw-bindf HOST TARGET   Bind HOST file as read & write at TARGET\n",
         prog,
         prog
     );
 }
 
+typedef struct {
+    const char *host;
+    const char *target;
+    bool read_only;
+} BindInfo;
+#define MAX_FBIND 64
+
 int main(int argc, char **argv) {
+    BindInfo fbind[MAX_FBIND] = { 0 };
+    bool args   = false;
+    int fbinds  = 0;
     int cmd_idx = -1;
 
     for (int i = 1; i < argc; i++) {
@@ -33,11 +45,32 @@ int main(int argc, char **argv) {
             break;
         }
 
-        cmd_idx = i;
-        break;
+        bool bindf = strcmp(argv[i], "--bindf") == 0;
+        bool bindf_rw = (strcmp(argv[i], "--rw-bindf") == 0);
+        if(bindf || bindf_rw) {
+            if (i + 2 >= argc) {
+                fprintf(stderr, "missing arguments for %s\n", argv[i]);
+                return 1;
+            }
+            if (fbinds >= MAX_FBIND) {
+                fprintf(stderr, "too many file binds\n");
+                return 1;
+            }
+            fbind[fbinds].host      = argv[i + 1];
+            fbind[fbinds].target    = argv[i + 2];
+            fbind[fbinds].read_only = bindf;
+            fbinds++;
+            i += 2;
+            args = true;
+        }
+
+        // If something was reconized as a flag/arg
+        // the only way to break is with `--` or reaching the end.
+        if(!args) { 
+            cmd_idx = i;
+            break;
+        }
     }
-
-
     if(cmd_idx < 0 || cmd_idx >= argc) {
         fprintf(stderr, "%s: Error: No command to run\n", argv[0]);  
         usage(argv[0]);
