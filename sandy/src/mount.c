@@ -3,13 +3,20 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <fcntl.h>
+#include <sched.h>
 #include <limits.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/syscall.h>
+
+static int pivot_root(const char *new_root, const char *put_old) {
+    return syscall(SYS_pivot_root, new_root, put_old);
+}
 
 static int mkdirat_p(int mnt, const char* path);
 static const char* skip_slashes(const char* str);
@@ -35,7 +42,7 @@ int setup_mount() {
         close(fd);
         return -1;
     }
-    int mnt = fsmount(fd, FSMOUNT_CLOEXEC, 0);
+    int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
     close(fd);
     if(mnt < 0) { 
         perror("fsmount");
@@ -135,6 +142,16 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
         return -1;
     }
     close(src);
+
+    return 0;
+}
+
+int swap_root_to_mount(int mnt) {
+    if (mnt < 0) {
+        fprintf(stderr, "invalid mount file descriptor\n");
+        return -1;
+    }
+
 
     return 0;
 }
