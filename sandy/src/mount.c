@@ -69,6 +69,10 @@ int setup_devices(int mnt) {
             return -1;
         }
     }
+    
+    // Failing is fine.
+    bind_path(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
+
     return 0;
 }
 
