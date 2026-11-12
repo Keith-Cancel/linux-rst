@@ -68,6 +68,25 @@ int main(int argc, char **argv) {
             args = true;
         }
 
+        bool bindd_ro = strcmp(argv[i], "--bindd") == 0;
+        bool bindd_rw = (strcmp(argv[i], "--rw-bindd") == 0);
+        if(bindd_ro || bindd_rw) {
+            if (i + 2 >= argc) {
+                fprintf(stderr, "missing arguments for %s\n", argv[i]);
+                return 1;
+            }
+            if (bindds >= MAX_BIND) {
+                fprintf(stderr, "too many file binds\n");
+                return 1;
+            }
+            bindd[bindds].host      = argv[i + 1];
+            bindd[bindds].target    = argv[i + 2];
+            bindd[bindds].read_only = bindd_ro;
+            bindds++;
+            i += 2;
+            args = true;
+        }
+
         // If something was recognized as a flag/arg
         // the only way to break is with `--` or reaching the end.
         if(!args) { 
@@ -93,11 +112,21 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // User directory binds
+    for (int i = 0; i < bindds; i++) {
+        int rc = bind_dir(mnt, bindd[i].host, bindd[i].target, bindd[i].read_only);
+        if (rc < 0) {
+            fprintf(stderr, "Failed to bind directory %s -> %s\n", bindd[i].host, bindd[i].target);
+            close(mnt);
+            return 1;
+        }
+    }
+
     // User file binds
     for (int i = 0; i < bindfs; i++) {
         int rc = bind_file(mnt, bindf[i].host, bindf[i].target, bindf[i].read_only);
         if (rc < 0) {
-            fprintf(stderr, "Failed to bind %s -> %s\n", bindf[i].host, bindf[i].target);
+            fprintf(stderr, "Failed to bind file %s -> %s\n", bindf[i].host, bindf[i].target);
             close(mnt);
             return 1;
         }
@@ -105,11 +134,13 @@ int main(int argc, char **argv) {
 
     if(swap_root_to_mount(mnt) < 0) {
         fprintf(stderr, "Swapping root failed");
+        close(mnt);
         return 1;
     }
 
     if(drop_privileges() < 0) {
         fprintf(stderr, "Dropping privileges failed");
+        close(mnt);
         return 1;
     }
 
