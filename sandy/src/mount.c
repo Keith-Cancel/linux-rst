@@ -49,7 +49,7 @@ int setup_mount(void) {
     }
     int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
     close(fd);
-    if(mnt < 0) { 
+    if(mnt < 0) {
         perror("fsmount");
         return -1;
     }
@@ -57,6 +57,18 @@ int setup_mount(void) {
 }
 
 int setup_devices(int mnt) {
+    const char *const devs[] = {
+        "/dev/null",
+        "/dev/zero",
+        "/dev/full",
+        "/dev/random",
+        "/dev/urandom",
+    };
+    for(unsigned i = 0; i < 5; i++) {
+        if(bind_dev(mnt, devs[i], devs[i]) < 0) {
+            return -1;
+        }
+    }
     return 0;
 }
 
@@ -240,7 +252,7 @@ int swap_root_to_mount(int mnt) {
         perror("pivot_root");
         return -1;
     }
-    
+
     if(umount2(".", MNT_DETACH) < 0) {
         perror("umount2");
         return -1;
