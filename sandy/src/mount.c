@@ -115,7 +115,7 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
         return -1;
     }
 
-    int tmp = openat(mnt, target, O_CREAT | O_WRONLY | O_CLOEXEC, 0644);
+    int tmp = openat(mnt, target, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , 0644);
     if(tmp < 0) {
         perror("openat file");
         return -1;
@@ -211,7 +211,7 @@ static int enter_namespace(void) {
     gid_t gid = getegid();
 
     if(unshare(CLONE_NEWUSER | CLONE_NEWNS) < 0) {
-        perror("unshare CLONE_NEWNS");
+        perror("unshare CLONE_NEWUSER | CLONE_NEWNS");
         return -1;
     }
 
@@ -221,7 +221,7 @@ static int enter_namespace(void) {
 
     // Change mount point propagation for root to private.
     if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
-        perror("mount MS_REC|MS_PRIVATE");
+        perror("mount MS_REC | MS_PRIVATE");
         return -1;
     }
     return 0;
