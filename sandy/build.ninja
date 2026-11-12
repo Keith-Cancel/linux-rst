@@ -1,0 +1,30 @@
+builddir  = ./build
+obj_dir   = $builddir/obj
+bin_dir   = $builddir/bin
+
+cc       = gcc
+c_libs   =
+c_inc    = -I./include
+c_opt    = -O2 -march=native
+c_extra  = -fdiagnostics-color=always
+c_flags  = -std=gnu23 -fno-ident
+c_warn   = -Wall -Wextra -Wshadow
+c_define =
+
+# ~~~~~~~~~~~ RULES ~~~~~~~~~~~
+rule cc
+    command = $cc $c_opt $c_flags $c_extra $c_warn -c $in -o $out $c_inc $c_define
+
+rule link
+    command = $cc $in -o $out $c_libs $c_inc
+
+rule touch
+    command = touch $out
+
+# ~~~~~~ BUILD COMMANDS ~~~~~~~
+build $obj_dir/main.o:  cc ./src/main.c
+build $obj_dir/mount.o: cc ./src/mount.c | ./include/mount.h
+
+
+# ~~~~~~~ LINK COMMANDS ~~~~~~~
+build ./sandy: link $obj_dir/main.o $obj_dir/mount.o
