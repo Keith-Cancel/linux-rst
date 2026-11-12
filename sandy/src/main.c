@@ -13,9 +13,11 @@ static void usage(const char *prog) {
         "Minimal process sandbox. I wrote this more for fun, not because\n"
         "I needed since there otherw ways I could achieve similar.\n"
         "Options (before --):\n"
-        "  --help                   Show this help\n"
         "  --bindf    HOST TARGET   Bind HOST file as read only at TARGET\n"
-        "  --rw-bindf HOST TARGET   Bind HOST file as read & write at TARGET\n",
+        "  --rw-bindf HOST TARGET   Bind HOST file as read & write at TARGET\n"
+        "  --bindd    HOST TARGET   Bind HOST directory as read only at TARGET\n"
+        "  --rw-bindd HOST TARGET   Bind HOST directory as read & write at TARGET\n"
+        "  --help                   Show this help\n",
         prog,
         prog
     );
@@ -26,12 +28,14 @@ typedef struct {
     const char *target;
     bool read_only;
 } BindInfo;
-#define MAX_FBIND 64
+#define MAX_BIND 64
 
 int main(int argc, char **argv) {
-    BindInfo fbind[MAX_FBIND] = { 0 };
+    BindInfo bindf[MAX_BIND] = { 0 };
+    BindInfo bindd[MAX_BIND] = { 0 };
     bool args   = false;
-    int fbinds  = 0;
+    int bindfs  = 0;
+    int bindds  = 0;
     int cmd_idx = -1;
 
     for (int i = 1; i < argc; i++) {
@@ -45,26 +49,26 @@ int main(int argc, char **argv) {
             break;
         }
 
-        bool bindf = strcmp(argv[i], "--bindf") == 0;
+        bool bindf_ro = strcmp(argv[i], "--bindf") == 0;
         bool bindf_rw = (strcmp(argv[i], "--rw-bindf") == 0);
-        if(bindf || bindf_rw) {
+        if(bindf_ro || bindf_rw) {
             if (i + 2 >= argc) {
                 fprintf(stderr, "missing arguments for %s\n", argv[i]);
                 return 1;
             }
-            if (fbinds >= MAX_FBIND) {
+            if (bindfs >= MAX_BIND) {
                 fprintf(stderr, "too many file binds\n");
                 return 1;
             }
-            fbind[fbinds].host      = argv[i + 1];
-            fbind[fbinds].target    = argv[i + 2];
-            fbind[fbinds].read_only = bindf;
-            fbinds++;
+            bindf[bindfs].host      = argv[i + 1];
+            bindf[bindfs].target    = argv[i + 2];
+            bindf[bindfs].read_only = bindf_ro;
+            bindfs++;
             i += 2;
             args = true;
         }
 
-        // If something was reconized as a flag/arg
+        // If something was recognized as a flag/arg
         // the only way to break is with `--` or reaching the end.
         if(!args) { 
             cmd_idx = i;
@@ -90,16 +94,24 @@ int main(int argc, char **argv) {
     }
 
     // User file binds
-    for (int i = 0; i < fbinds; i++) {
-        int rc = bind_file(mnt, fbind[i].host, fbind[i].target, fbind[i].read_only);
+    for (int i = 0; i < bindfs; i++) {
+        int rc = bind_file(mnt, bindf[i].host, bindf[i].target, bindf[i].read_only);
         if (rc < 0) {
-            fprintf(stderr, "Failed to bind %s -> %s\n", fbind[i].host, fbind[i].target);
+            fprintf(stderr, "Failed to bind %s -> %s\n", bindf[i].host, bindf[i].target);
             close(mnt);
             return 1;
         }
     }
-    
-    drop_privileges();
+
+    if(swap_root_to_mount(mnt) < 0) {
+        fprintf(stderr, "Swapping root failed");
+        return 1;
+    }
+
+    if(drop_privileges() < 0) {
+        fprintf(stderr, "Dropping privileges failed");
+        return 1;
+    }
 
     // Todo process args to start a process with some `exec{?}` call
     return 0;
