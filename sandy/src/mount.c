@@ -56,6 +56,10 @@ int setup_mount(void) {
     return mnt;
 }
 
+int setup_devices(int mnt) {
+    return 0;
+}
+
 int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) {
     if(host_src == nullptr || host_src[0] == '\0') {
         fprintf(stderr, "host_src path must be a non-empty path");
@@ -151,6 +155,52 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
     return 0;
 }
 
+int bind_dev(int mnt, const char* host_dev, const char* target) {
+    if(host_dev == nullptr || host_dev[0] == '\0') {
+        fprintf(stderr, "host_dev path must be a non-empty path\n");
+        return -1;
+    }
+    target = skip_slashes(target);
+    if(target == nullptr || target[0] == '\0') {
+        fprintf(stderr, "target path must be a non-empty path\n");
+        return -1;
+    }
+    if(mkdirat_p(mnt, target) != 0) {
+        return -1;
+    }
+
+    int tmp = openat(mnt, target, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , 0644);
+    if(tmp < 0) {
+        perror("openat dev");
+        return -1;
+    }
+    close(tmp);
+
+    int src = open_tree(AT_FDCWD, host_dev, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+    if (src < 0) {
+        perror("open_tree dev");
+        return -1;
+    }
+
+    struct mount_attr attr = {
+        .attr_set = MOUNT_ATTR_NOSUID,
+    };
+    if(mount_setattr(src, "", AT_EMPTY_PATH, &attr, sizeof(attr)) < 0) {
+        perror("mount_setattr dev");
+        close(src);
+        return -1;
+    }
+
+    // Attach src file to mnt.
+    if (move_mount(src, "", mnt, target, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
+        perror("move_mount dev");
+        close(src);
+        return -1;
+    }
+    close(src);
+    return 0;
+}
+
 int swap_root_to_mount(int mnt) {
     if(mnt < 0) {
         fprintf(stderr, "invalid mount file descriptor\n");
@@ -237,12 +287,12 @@ static int write_ids(uid_t uid, gid_t gid) {
         return -1;
     }
 
-    snprintf(buff, 32, "%u %u 1\n", uid, uid);
+    snprintf(buff, 32, "0 %u 1\n", uid);
     if(write_str("/proc/self/uid_map", buff) < 0) {
         return -1;
     }
 
-    snprintf(buff, 32, "%u %u 1\n", gid, gid);
+    snprintf(buff, 32, "0 %u 1\n", gid);
     if(write_str("/proc/self/gid_map", buff) < 0) {
         return -1;
     }
