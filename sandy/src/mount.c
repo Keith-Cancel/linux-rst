@@ -184,6 +184,16 @@ int swap_root_to_mount(int mnt) {
         perror("pivot_root");
         return -1;
     }
+    
+    if(umount2(".", MNT_DETACH) < 0) {
+        perror("umount2");
+        return -1;
+    }
+    
+    if(chdir("/") < 0) {
+        perror("chdir '/'");
+        return -1;
+    }
 
     return 0;
 }
