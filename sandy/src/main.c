@@ -28,10 +28,17 @@ int main(int argc, char **argv) {
             usage(argv[0]);
             return 0;
         }
+        if(strcmp(cur, "--") == 0) {
+            cmd_idx = i + 1;
+            break;
+        }
+
+        cmd_idx = i;
+        break;
     }
 
 
-    if(cmd_idx < 0) {
+    if(cmd_idx < 0 || cmd_idx >= argc) {
         fprintf(stderr, "%s: Error: No command to run\n", argv[0]);  
         usage(argv[0]);
         return -1;
