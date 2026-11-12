@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < bindds; i++) {
         int rc = bind_dir(mnt, bindd[i].host, bindd[i].target, bindd[i].read_only);
         if (rc < 0) {
-            fprintf(stderr, "Failed to bind directory %s -> %s\n", bindd[i].host, bindd[i].target);
+            fprintf(stderr, "Failed to bind directory '%s' -> '%s'\n", bindd[i].host, bindd[i].target);
             close(mnt);
             return 1;
         }
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < bindfs; i++) {
         int rc = bind_file(mnt, bindf[i].host, bindf[i].target, bindf[i].read_only);
         if (rc < 0) {
-            fprintf(stderr, "Failed to bind file %s -> %s\n", bindf[i].host, bindf[i].target);
+            fprintf(stderr, "Failed to bind file '%s' -> '%s'\n", bindf[i].host, bindf[i].target);
             close(mnt);
             return 1;
         }

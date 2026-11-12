@@ -19,6 +19,7 @@ static int pivot_root(const char *new_root, const char *put_old) {
 }
 
 static bool is_dir(const char *path);
+static bool is_file(const char *path);
 static int enter_namespace(void);
 static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
@@ -78,7 +79,7 @@ int setup_devices(int mnt) {
 
 int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) {
     if(!is_dir(host_src)) {
-        fprintf(stderr, "host_src path must be a directory.");
+        fprintf(stderr, "'%s' is not a directory.\n", host_src);
         return -1;
     }
     struct mount_attr attr = {
@@ -92,6 +93,10 @@ int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) 
 }
 
 int bind_file(int mnt, const char* host_file, const char* target, bool read_only) {
+    if(!is_file(host_file)) {
+        fprintf(stderr, "'%s' is not a file.\n", host_file);
+        return -1;
+    }
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV,
     };
@@ -283,6 +288,19 @@ static bool is_dir(const char *path) {
     }
 
     return S_ISDIR(path_stat.st_mode) != 0;
+}
+
+static bool is_file(const char *path) {
+    if(path == nullptr) {
+        return false;
+    }
+
+    struct stat path_stat = { 0 };
+    if (stat(path, &path_stat) != 0) {
+        return false; 
+    }
+    
+    return S_ISREG(path_stat.st_mode);
 }
 
 static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent) {
