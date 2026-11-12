@@ -161,11 +161,13 @@ int swap_root_to_mount(int mnt) {
     char tmp[23] = "/tmp/sandy_root_XXXXXX";
     if(mkdtemp(tmp) == NULL) {
         perror("mkdtemp");
+        close(mnt);
         return -1;
     }
     if(move_mount(mnt, "", AT_FDCWD, tmp, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
         perror("move_mount tmp root");
         rmdir(tmp);
+        close(mnt);
         return -1;
     }
     // Mount has been attached so close we can close it.
