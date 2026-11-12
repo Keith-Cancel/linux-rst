@@ -114,6 +114,7 @@ int bind_dev(int mnt, const char* host_dev, const char* target) {
 }
 
 int swap_root_to_mount(int mnt) {
+    int tmp_fd = - 1;
     if(mnt < 0) {
         fprintf(stderr, "invalid mount file descriptor\n");
         return -1;
@@ -123,17 +124,22 @@ int swap_root_to_mount(int mnt) {
     char tmp[23] = "/tmp/sandy_root_XXXXXX";
     if(mkdtemp(tmp) == NULL) {
         perror("mkdtemp");
-        close(mnt);
-        return -1;
+        goto fail;
     }
+    
+    tmp_fd = open(tmp, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if(tmp_fd < 0) {
+        perror("open tmp");
+        goto fail;
+    }
+
     if(move_mount(mnt, "", AT_FDCWD, tmp, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
         perror("move_mount tmp root");
-        rmdir(tmp);
-        close(mnt);
-        return -1;
+        goto fail;
     }
     // Mount has been attached so close we can close it.
     close(mnt);
+    mnt = -1;
 
     // This man page: https://man7.org/linux/man-pages/man2/pivot_root.2.html
     // Shows this sequence
@@ -145,25 +151,37 @@ int swap_root_to_mount(int mnt) {
 
     if(chdir(tmp) < 0) {
         perror("chdir new root");
-        return -1;
+        goto fail;
     }
 
     if (pivot_root(".", ".") < 0) {
         perror("pivot_root");
-        return -1;
+        goto fail;
     }
 
     if(umount2(".", MNT_DETACH) < 0) {
         perror("umount2");
-        return -1;
+        goto fail;
     }
 
     if(chdir("/") < 0) {
         perror("chdir '/'");
-        return -1;
+        goto fail;
     }
 
+    unlinkat(tmp_fd, ".", AT_REMOVEDIR);
+    close(tmp_fd);
+
     return 0;
+fail:
+    if(mnt >= 0) {
+        close(mnt);
+    }
+    if(tmp_fd >= 0) {
+        unlinkat(tmp_fd, ".", AT_REMOVEDIR);
+        close(tmp_fd);
+    }
+    return -1;
 }
 
 static int write_str(const char *path, const char *str) {
