@@ -18,9 +18,9 @@ static int pivot_root(const char *new_root, const char *put_old) {
     return syscall(SYS_pivot_root, new_root, put_old);
 }
 
+static bool is_dir(const char *path);
 static int enter_namespace(void);
-static int mkdirat_p(int mnt, const char* path);
-static const char* skip_slashes(const char* str);
+static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
 int setup_mount(void) {
     if (enter_namespace() < 0) {
@@ -73,144 +73,35 @@ int setup_devices(int mnt) {
 }
 
 int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) {
-    if(host_src == nullptr || host_src[0] == '\0') {
-        fprintf(stderr, "host_src path must be a non-empty path");
+    if(!is_dir(host_src)) {
+        fprintf(stderr, "host_src path must be a directory.");
         return -1;
     }
-    target = skip_slashes(target);
-    if(target == nullptr || target[0] == '\0') {
-        fprintf(stderr, "target path must be a non-empty path");
-        return -1;
-    }
-    if(mkdirat_p(mnt, target) != 0) {
-        return -1;
-    }
-    if(mkdirat(mnt, target, 0755) < 0) {
-        perror("mkdirat");
-        return -1;
-    }
-
-    int src = open_tree(AT_FDCWD, host_src, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC | AT_RECURSIVE);
-    if(src < 0) {
-        perror("open_tree dir");
-        return -1;
-    }
-
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV,
     };
     if(read_only) {
         attr.attr_set |= MOUNT_ATTR_RDONLY;
     }
-    if(mount_setattr(src, "", AT_EMPTY_PATH | AT_RECURSIVE, &attr, sizeof(attr)) < 0) {
-        perror("mount_setattr");
-        close(src);
-        return -1;
-    }
-    // Attach src path to mnt.
-    if(move_mount(src, "", mnt, target, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
-        perror("move_mount");
-        close(src);
-        return -1;
-    }
-    close(src);
-    return 0;
+
+    return bind_path(mnt, host_src, target, &attr, true, false);
 }
 
 int bind_file(int mnt, const char* host_file, const char* target, bool read_only) {
-    if(host_file == nullptr || host_file[0] == '\0') {
-        fprintf(stderr, "host_file path must be a non-empty path\n");
-        return -1;
-    }
-    target = skip_slashes(target);
-    if(target == nullptr || target[0] == '\0') {
-        fprintf(stderr, "target path must be a non-empty path\n");
-        return -1;
-    }
-    if(mkdirat_p(mnt, target) != 0) {
-        return -1;
-    }
-
-    int tmp = openat(mnt, target, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , 0644);
-    if(tmp < 0) {
-        perror("openat file");
-        return -1;
-    }
-    close(tmp);
-
-    int src = open_tree(AT_FDCWD, host_file, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
-    if (src < 0) {
-        perror("open_tree file");
-        return -1;
-    }
-
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV,
     };
     if(read_only) {
         attr.attr_set |= MOUNT_ATTR_RDONLY;
     }
-    if(mount_setattr(src, "", AT_EMPTY_PATH, &attr, sizeof(attr)) < 0) {
-        perror("mount_setattr file");
-        close(src);
-        return -1;
-    }
-
-    // Attach src file to mnt.
-    if (move_mount(src, "", mnt, target, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
-        perror("move_mount file");
-        close(src);
-        return -1;
-    }
-    close(src);
-
-    return 0;
+    return bind_path(mnt, host_file, target, &attr, false, false);
 }
 
 int bind_dev(int mnt, const char* host_dev, const char* target) {
-    if(host_dev == nullptr || host_dev[0] == '\0') {
-        fprintf(stderr, "host_dev path must be a non-empty path\n");
-        return -1;
-    }
-    target = skip_slashes(target);
-    if(target == nullptr || target[0] == '\0') {
-        fprintf(stderr, "target path must be a non-empty path\n");
-        return -1;
-    }
-    if(mkdirat_p(mnt, target) != 0) {
-        return -1;
-    }
-
-    int tmp = openat(mnt, target, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , 0644);
-    if(tmp < 0) {
-        perror("openat dev");
-        return -1;
-    }
-    close(tmp);
-
-    int src = open_tree(AT_FDCWD, host_dev, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
-    if (src < 0) {
-        perror("open_tree dev");
-        return -1;
-    }
-
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID,
     };
-    if(mount_setattr(src, "", AT_EMPTY_PATH, &attr, sizeof(attr)) < 0) {
-        perror("mount_setattr dev");
-        close(src);
-        return -1;
-    }
-
-    // Attach src file to mnt.
-    if (move_mount(src, "", mnt, target, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
-        perror("move_mount dev");
-        close(src);
-        return -1;
-    }
-    close(src);
-    return 0;
+    return bind_path(mnt, host_dev, target, &attr, false, false);
 }
 
 int swap_root_to_mount(int mnt) {
@@ -342,12 +233,20 @@ static const char* skip_slashes(const char* str) {
     return str;
 }
 
-static int mkdirat_p(int mnt, const char* path) {
+void sperror(const char* msg, bool silent) {
+    if(!silent) {
+        perror(msg);
+    }
+}
+
+static int mkdirat_p(int mnt, const char* path, bool silent) {
     char p_cpy[PATH_MAX];
     // Copy path to a buffer so I can modify it as I go.
     size_t len = strlen(path);
     if(len >= (PATH_MAX - 1)) {
-        fprintf(stderr, "Path too long: '%s'`\n", path);
+        if(!silent) {
+            fprintf(stderr, "Path too long: '%s'`\n", path);
+        }
         return -1;
     }
     memcpy(p_cpy, path, len);
@@ -359,12 +258,84 @@ static int mkdirat_p(int mnt, const char* path) {
             *p = '\0';
             int res = mkdirat(mnt, p_cpy, 0755);
             if(res < 0 && errno != EEXIST) {
-                perror("mkdirat p");
+                sperror("mkdirat_p", silent);
                 return -1;
             }
             *p = '/';
         }
         p += 1;
     }
+    return 0;
+}
+
+static bool is_dir(const char *path) {
+    if(path == nullptr) {
+        return false;
+    }
+
+    struct stat path_stat = { 0 };
+    if (stat(path, &path_stat) != 0) {
+        return false; 
+    }
+
+    return S_ISDIR(path_stat.st_mode) != 0;
+}
+
+static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent) {
+    if(host_path == nullptr || host_path[0] == '\0') {
+        if(!silent) {
+            fprintf(stderr, "host path must be a non-empty path\n");
+        }
+        return -1;
+    }
+    target = skip_slashes(target);
+    if(target == nullptr || target[0] == '\0') {
+        if(!silent) {
+            fprintf(stderr, "target path must be a non-empty path\n");
+        }
+        return -1;
+    }
+    if(mkdirat_p(mnt, target, silent) != 0) {
+        return -1;
+    }
+    
+    unsigned flags1 = AT_EMPTY_PATH;
+    unsigned flags0 = OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC;
+    int res = -1;
+    if(dir) {
+        res = mkdirat(mnt, target, 0755);
+        flags0 |= AT_RECURSIVE;
+        flags1 |= AT_RECURSIVE;
+    } else {
+        res = openat(mnt, target, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , 0644);
+        if(res >= 0) {
+            close(res);
+        }
+    }
+    if(res < 0) {
+        sperror("openat/mkdirat", silent);
+        return -1;
+    }
+
+    int src = open_tree(AT_FDCWD, host_path, flags0);
+    if (src < 0) {
+        sperror("open_tree", silent);
+        return -1;
+    }
+
+    if(mount_setattr(src, "", flags1, attr, sizeof(struct mount_attr)) < 0) {
+        sperror("fstat", silent);
+        close(src);
+        return -1;
+    }
+
+    // Attach src file to mnt.
+    if (move_mount(src, "", mnt, target, MOVE_MOUNT_F_EMPTY_PATH) < 0) {
+        sperror("move_mount dev", silent);
+        close(src);
+        return -1;
+    }
+
+    close(src);
     return 0;
 }
