@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
             bindfs++;
             i += 2;
             args = true;
+            continue;
         }
 
         bool bindd_ro = strcmp(argv[i], "--bindd") == 0;
@@ -85,6 +86,7 @@ int main(int argc, char **argv) {
             bindds++;
             i += 2;
             args = true;
+            continue;
         }
 
         // If something was recognized as a flag/arg
@@ -134,13 +136,11 @@ int main(int argc, char **argv) {
 
     if(swap_root_to_mount(mnt) < 0) {
         fprintf(stderr, "Swapping root failed");
-        close(mnt);
         return 1;
     }
 
     if(drop_privileges() < 0) {
         fprintf(stderr, "Dropping privileges failed");
-        close(mnt);
         return 1;
     }
 
