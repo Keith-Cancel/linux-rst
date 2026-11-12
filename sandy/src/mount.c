@@ -15,7 +15,11 @@
 #include <sys/syscall.h>
 
 static int pivot_root(const char *new_root, const char *put_old) {
-    return syscall(SYS_pivot_root, new_root, put_old);
+    int ret = syscall(SYS_pivot_root, new_root, put_old);
+    if(ret < 0) {
+        errno = -ret;
+    }
+    return ret;
 }
 
 static int enter_namespace(void);
@@ -170,6 +174,16 @@ int swap_root_to_mount(int mnt) {
     }
     // Mount has been attached so close we can close it.
     close(mnt);
+
+    if(chdir(tmp) < 0) {
+        perror("chdir new root");
+        return -1;
+    }
+
+    if (pivot_root(".", ".") < 0) {
+        perror("pivot_root");
+        return -1;
+    }
 
     return 0;
 }
