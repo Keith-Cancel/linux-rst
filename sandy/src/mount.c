@@ -175,6 +175,14 @@ int swap_root_to_mount(int mnt) {
     // Mount has been attached so close we can close it.
     close(mnt);
 
+    // This man page: https://man7.org/linux/man-pages/man2/pivot_root.2.html
+    // Shows this sequence
+    // chdir(new_root);
+    // pivot_root(".", ".");
+    // umount2(".", MNT_DETACH);
+    // It appears to me that basically old root ontop of mount point
+    // so then when unmount is called it is the first to go.
+
     if(chdir(tmp) < 0) {
         perror("chdir new root");
         return -1;
@@ -189,7 +197,7 @@ int swap_root_to_mount(int mnt) {
         perror("umount2");
         return -1;
     }
-    
+
     if(chdir("/") < 0) {
         perror("chdir '/'");
         return -1;
