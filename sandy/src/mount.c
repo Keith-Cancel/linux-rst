@@ -161,9 +161,61 @@ int swap_root_to_mount(int mnt) {
     return 0;
 }
 
+static int write_str(const char *path, const char *str) {
+    int fd = open(path, O_WRONLY | O_CLOEXEC);
+    if(fd < 0) {
+        perror(path);
+        return -1;
+    }
+
+    const char *pos = str;
+    size_t rem = strlen(str);
+    while(rem > 0) {
+        ssize_t amt = write(fd, pos, rem);
+        if(amt < 0) {
+            if(errno == EINTR) {
+                continue;
+            }
+            close(fd);
+            return -1;
+        }
+        pos += amt;
+        rem -= amt;
+    }
+    close(fd);
+    return 0;
+}
+
+static int write_ids(uid_t uid, gid_t gid) {
+    char buff[32] = { 0 };
+
+    // Needed so I can write to the map files.
+    if(write_str("/proc/self/setgroups", "deny\n") < 0) {
+        return -1;
+    }
+
+    snprintf(buff, 32, "%u %u 1\n", uid, uid);
+    if(write_str("/proc/self/uid_map", buff) < 0) {
+        return -1;
+    }
+
+    snprintf(buff, 32, "%u %u 1\n", gid, gid);
+    if(write_str("/proc/self/gid_map", buff) < 0) {
+        return -1;
+    }
+    return 0;
+}
+
 static int enter_namespace(void) {
+    uid_t uid = geteuid();
+    gid_t gid = getegid();
+
     if(unshare(CLONE_NEWUSER | CLONE_NEWNS) < 0) {
         perror("unshare CLONE_NEWNS");
+        return -1;
+    }
+
+    if(write_ids(uid, gid) < 0) {
         return -1;
     }
 
