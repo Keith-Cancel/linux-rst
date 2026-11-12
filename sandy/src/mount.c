@@ -18,10 +18,15 @@ static int pivot_root(const char *new_root, const char *put_old) {
     return syscall(SYS_pivot_root, new_root, put_old);
 }
 
+static int enter_namespace(void);
 static int mkdirat_p(int mnt, const char* path);
 static const char* skip_slashes(const char* str);
 
-int setup_mount() {
+int setup_mount(void) {
+    if (enter_namespace() < 0) {
+        return -1;
+    }
+
     int fd = fsopen("tmpfs", FSOPEN_CLOEXEC);
     if(fd < 0) {
         perror("fsopen");
@@ -147,12 +152,26 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
 }
 
 int swap_root_to_mount(int mnt) {
-    if (mnt < 0) {
+    if(mnt < 0) {
         fprintf(stderr, "invalid mount file descriptor\n");
         return -1;
     }
 
 
+    return 0;
+}
+
+static int enter_namespace(void) {
+    if(unshare(CLONE_NEWUSER | CLONE_NEWNS) < 0) {
+        perror("unshare CLONE_NEWNS");
+        return -1;
+    }
+
+    // Change mount point propagation for root to private.
+    if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
+        perror("mount MS_REC|MS_PRIVATE");
+        return -1;
+    }
     return 0;
 }
 
