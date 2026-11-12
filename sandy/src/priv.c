@@ -8,7 +8,8 @@
 #include <linux/close_range.h> 
 
 int drop_privileges(void) {
-    close_range(3U, ~0U, 0);
+    // make sure everything but std io fds are close when exec.
+    close_range(3U, ~0U, CLOSE_RANGE_CLOEXEC);
     if(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
         perror("PR_SET_NO_NEW_PRIVS");
         return -1;
