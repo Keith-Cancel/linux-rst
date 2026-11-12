@@ -74,20 +74,31 @@ int main(int argc, char **argv) {
     if(cmd_idx < 0 || cmd_idx >= argc) {
         fprintf(stderr, "%s: Error: No command to run\n", argv[0]);  
         usage(argv[0]);
-        return -1;
+        return 1;
     }
 
 
     int mnt = setup_mount();
     if(mnt < 0) {
         fprintf(stderr, "Failed to create mount point");
-        return -1;
+        return 1;
     }
     if(setup_devices(mnt) < 0) {
         fprintf(stderr, "Failed to setup devices");
         close(mnt);
-        return -1;
+        return 1;
     }
+
+    // User file binds
+    for (int i = 0; i < fbinds; i++) {
+        int rc = bind_file(mnt, fbind[i].host, fbind[i].target, fbind[i].read_only);
+        if (rc < 0) {
+            fprintf(stderr, "Failed to bind %s -> %s\n", fbind[i].host, fbind[i].target);
+            close(mnt);
+            return 1;
+        }
+    }
+    
     drop_privileges();
 
     // Todo process args to start a process with some `exec{?}` call
