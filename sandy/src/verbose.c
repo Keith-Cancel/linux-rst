@@ -66,10 +66,14 @@ _Static_assert(VAL_MAX >= 32, "Buffer is too small");
     __attribute__((minsize))
 #endif
 void verbose_line(Verbose v, const char* title, const char* value, VStatus stat) {
-    const uint8_t OK[4]    = { ' ', 'O', 'K', ' ' };
-    const uint8_t FAIL[4]  = { 'F', 'A', 'I', 'L' };
-    const uint8_t RED[7]   = { 0x1b, '[', '1', ';', '3', '1', 'm' };
-    const uint8_t GREEN[7] = { 0x1b, '[', '1', ';', '3', '2', 'm' };
+    const uint8_t STAT[2][8] = {
+        [V_OK]   = "[ OK ] ",
+        [V_FAIL] = "[FAIL] ",
+    };
+    const uint8_t STAT_COLOR[2][19] = {
+        [V_OK]   = "[ \x1b[1;32mOK\x1b[0m ] ",
+        [V_FAIL] = "[\x1b[1;31mFAIL\x1b[0m] ",
+    };
 
     if(!verbose_enabled(v)) {
         return;
@@ -92,26 +96,13 @@ void verbose_line(Verbose v, const char* title, const char* value, VStatus stat)
     uint8_t* pos = buff;
     // Print status if it's either V_OK or V_FAIL
     if(stat == V_OK || stat == V_FAIL) {
-        bool good = stat == V_OK;
-
-        *pos = '[';
-        pos += 1;
-
-        if(color) {
-            memcpy(pos, good ? GREEN : RED, 7);
+        if(!color) {
+            memcpy(pos, STAT[stat], 7);
             pos += 7;
+        } else {
+            memcpy(pos, STAT_COLOR[stat], 18);
+            pos += 18;
         }
-
-        memcpy(pos, good ? OK : FAIL, 4);
-        pos += 4;
-
-        if(color) {
-            memcpy(pos, &(uint8_t[4]) { 0x1b, '[', '0', 'm' }, 4);
-            pos += 4;
-        }
-
-        memcpy(pos, "] ", 2);
-        pos += 2;
     } else {
         pos += 7;
     }
