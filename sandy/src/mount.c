@@ -18,9 +18,11 @@ static int pivot_root(const char *new_root, const char *put_old) {
     return syscall(SYS_pivot_root, new_root, put_old);
 }
 
+static bool is_dev(const char *path);
 static bool is_dir(const char *path);
 static bool is_file(const char *path);
-static void print_verbose(const char *title, const char *value, bool success, bool print);
+
+static MountErr check_host_path(const char* path);
 
 static int enter_namespace(void);
 static int bind_path_old(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
@@ -76,6 +78,10 @@ int setup_mount(Verbose v) {
 bool setup_devices(int mnt, Verbose v) {
     v = verbose_set_title_width(v, 10);
     verbose_header(v, "Configuring: /dev");
+    errno = 0;
+    struct stat path_stat = { 0 };
+    stat("Water dog", &path_stat);
+    perror("Water dog");
 
     const char *const devs[] = {
         "/dev/null",
@@ -86,7 +92,7 @@ bool setup_devices(int mnt, Verbose v) {
     };
     for(unsigned i = 0; i < 5; i++) {
         const char* dev = devs[i];
-        if(bind_dev(mnt, dev, dev) < 0) {
+        if(bind_dev_old(mnt, dev, dev) < 0) {
             return false;
         }
         //print_verbose("mounted", dev, true, verbose);
@@ -133,11 +139,23 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
     return bind_path_old(mnt, host_file, target, &attr, false, false);
 }
 
-int bind_dev(int mnt, const char* host_dev, const char* target) {
+int bind_dev_old(int mnt, const char* host_dev, const char* target) {
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID,
     };
     return bind_path_old(mnt, host_dev, target, &attr, false, false);
+}
+
+MountErr bind_dev(int mnt, PathCtx* ctx, Verbose verbose) {
+    MountErr ret = check_host_path(ctx->host_path);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+    if(!is_dev(ctx->host_path)) {
+
+    }
+
+
 }
 
 int swap_root_to_mount(int mnt) {
@@ -322,6 +340,18 @@ static int mkdirat_p(int mnt, const char* path, bool silent) {
     return 0;
 }
 
+static bool is_dev(const char *path) {
+    if(path == nullptr) {
+        return false;
+    }
+
+    struct stat path_stat = { 0 };
+    if (stat(path, &path_stat) != 0) {
+        return false;
+    }
+    return S_ISBLK(path_stat.st_mode) | S_ISCHR(path_stat.st_mode);
+}
+
 static bool is_dir(const char *path) {
     if(path == nullptr) {
         return false;
@@ -408,14 +438,14 @@ static int bind_path_old(int mnt, const char *host_path, const char *target, str
 static MountErr prep_env_path(const char* path, char buff[], size_t blen) {
     memset(buff, 0, blen);
     if(path == nullptr) {
-        return ENV_PATH_NULL;
+        return M_ENV_PATH_NULL;
     }
     path = trim_leading_slashes(path);
 
     // Copy path into the buffer.
     size_t len = strlen(path);
     if(len >= (blen - 1)) {
-        return ENV_PATH_TOO_LONG;
+        return M_ENV_PATH_TOO_LONG;
     }
     memcpy(buff, path, len);
     buff[len] = '\0';
@@ -428,27 +458,27 @@ static MountErr prep_env_path(const char* path, char buff[], size_t blen) {
     }
 
     if(buff[0] == '\0') {
-        return ENV_PATH_EMPTY;
+        return M_ENV_PATH_EMPTY;
     }
 
-    return SUCCESS;
+    return M_SUCCESS;
 }
 
 static MountErr check_host_path(const char* path) {
     if(path == nullptr) {
-        return HST_PATH_NULL;
+        return M_HST_PATH_NULL;
     }
     if(path[0] == '\0') {
-        return HST_PATH_EMPTY;
+        return M_HST_PATH_EMPTY;
     }
-    return SUCCESS;
+    return M_SUCCESS;
 }
 
 // Make all the parent directories of environment path.
 // Note path buff needs to be write-able, and contain the path.
 // If an error occurs the buff will contain the parent path that
 // errored.
-static MountErr make_parent_path_env(int mnt, char* path_buff, bool verbose) {
+static MountErr make_parent_path_env(int mnt, char* path_buff, Verbose verbose) {
     for(char* p = path_buff; *p != '\0'; p++) {
         if(*p != '/') {
             continue;
@@ -458,11 +488,11 @@ static MountErr make_parent_path_env(int mnt, char* path_buff, bool verbose) {
         int res = mkdirat(mnt, path_buff, 0755);
         if(res < 0 && errno != EEXIST) {
             // Don't restore path string for error reporting
-            return ENV_PATH_BAD_PARENT;
+            return M_ENV_PATH_BAD_PARENT;
         }
-        print_verbose("environ mkdir", path_buff, true, verbose & (res >= 0));
+        //print_verbose("environ mkdir", path_buff, true, verbose & (res >= 0));
         // Restore string.
         *p = '/';
     }
-    return SUCCESS;
+    return M_SUCCESS;
 }

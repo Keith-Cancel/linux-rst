@@ -3,22 +3,33 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "verbose.h"
 
 typedef enum : uint32_t {
-    SUCCESS = 0,
-    ENV_PATH_NULL,
-    ENV_PATH_EMPTY,
-    ENV_PATH_TOO_LONG,
-    ENV_PATH_BAD_PARENT,
-    HST_PATH_NULL,
-    HST_PATH_EMPTY,
+    M_SUCCESS = 0,
+    M_ENV_PATH_NULL,
+    M_ENV_PATH_EMPTY,
+    M_ENV_PATH_TOO_LONG,
+    M_ENV_PATH_BAD_PARENT,
+    M_HST_PATH_NULL,
+    M_HST_PATH_EMPTY,
 } MountErr;
+
+typedef struct path_ctx_s {
+    const uint8_t* host_path;
+    const uint8_t* env_path;
+    uint8_t*       buff;
+    size_t         buff_cap;
+    int            mount_fd;
+} PathCtx;
 
 int  setup_mount(Verbose verbose);
 bool setup_devices(int mnt, Verbose verbose);
 
-int bind_dev(int mnt, const char* host_dev, const char* target);
+MountErr bind_dev(int mnt, PathCtx* ctx, Verbose verbose);
+int bind_dev_old(int mnt, const char* host_dev, const char* target);
+
 // Swap the root directory to the mount and close the mount file descriptor.
 int swap_root_to_mount(int mnt);
 int bind_dir(int mnt, const char *host_src, const char *target, bool read_only);
