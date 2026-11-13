@@ -9,6 +9,7 @@ typedef enum : uint32_t {
     ENV_PATH_NULL,
     ENV_PATH_EMPTY,
     ENV_PATH_TOO_LONG,
+    ENV_PATH_BAD_PARENT,
     HST_PATH_NULL,
     HST_PATH_EMPTY,
 } MountErr;

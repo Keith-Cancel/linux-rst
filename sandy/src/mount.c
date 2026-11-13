@@ -20,6 +20,8 @@ static int pivot_root(const char *new_root, const char *put_old) {
 
 static bool is_dir(const char *path);
 static bool is_file(const char *path);
+static void print_verbose(const char *title, const char *value, bool success, bool print);
+
 static int enter_namespace(void);
 static int bind_path_old(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
@@ -406,7 +408,7 @@ static int bind_path_old(int mnt, const char *host_path, const char *target, str
     return 0;
 }
 
-static MountErr prep_env_path(const char* path, char* buff[], size_t blen) {
+static MountErr prep_env_path(const char* path, char buff[], size_t blen) {
     memset(buff, 0, blen);
     if(path == nullptr) {
         return ENV_PATH_NULL;
@@ -443,4 +445,53 @@ static MountErr check_host_path(const char* path) {
         return HST_PATH_EMPTY;
     }
     return SUCCESS;
+}
+
+// Make all the parent directories of environment path.
+// Note path buff needs to be write-able, and contain the path.
+// If an error occurs the buff will contain the parent path that
+// errored.
+static MountErr make_parent_path_env(int mnt, char* path_buff, bool verbose) {
+    for(char* p = path_buff; *p != '\0'; p++) {
+        if(*p != '/') {
+            continue;
+        }
+        // Shorten string.
+        *p = '\0';
+        int res = mkdirat(mnt, path_buff, 0755);
+        if(res < 0 && errno != EEXIST) {
+            // Don't restore path string for error reporting
+            return ENV_PATH_BAD_PARENT;
+        }
+        print_verbose("environ mkdir", path_buff, true, verbose & (res >= 0));
+        // Restore string.
+        *p = '/';
+    }
+    return SUCCESS;
+}
+
+static void print_verbose(const char *title, const char *value, bool success, bool print) {
+    if(!print) {
+        return;
+    }
+    // Copy title, but padded if too short, truncated if too long.
+    #define LEN 16
+    char buf[LEN + 1] = { 0 };
+    memset(buf, ' ', LEN); // Prefill with spaces
+    // Copy part of string and add ':' at end.
+    int i = 0;
+    for(; i < (LEN-1); i++) {
+        char c = title[i];
+        if(c == '\0') {
+            break;
+        }
+        buf[i] = c;
+    }
+    buf[i] = ':';
+
+    printf("%s%s%s\n",
+        buf,
+        value ? value : "(null)",
+        success ? "" : " (Failed)"
+    );
 }
