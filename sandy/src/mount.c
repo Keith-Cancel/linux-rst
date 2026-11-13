@@ -30,14 +30,14 @@ int setup_mount(bool verbose) {
 
     int fd = fsopen("tmpfs", FSOPEN_CLOEXEC);
     if(fd < 0) {
-        perror("fsopen");
+        perror("tmpfs: fsopen");
         return -1;
     }
     if(verbose) {
         puts("===== Configuring: tmpfs =====");
     }
     if(fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0) < 0) {
-        perror("fsconfig size");
+        perror("tmpfs: size");
         close(fd);
         return -1;
     }
@@ -45,7 +45,7 @@ int setup_mount(bool verbose) {
         printf("tmpfs size:    128M\n");
     }
     if(fsconfig(fd, FSCONFIG_SET_STRING, "mode", "0755", 0) < 0) {
-        perror("fsconfig mode");
+        perror("tmpfs: mode");
         close(fd);
         return -1;
     }
@@ -53,7 +53,7 @@ int setup_mount(bool verbose) {
         printf("tmpfs mode:    0755\n");
     }
     if(fsconfig(fd, FSCONFIG_CMD_CREATE_EXCL, NULL, NULL, 0) < 0) {
-        perror("fsconfig FSCONFIG_CMD_CREATE_EXCL");
+        perror("tmpfs: exclusive");
         close(fd);
         return -1;
     }
@@ -63,7 +63,7 @@ int setup_mount(bool verbose) {
     int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
     close(fd);
     if(mnt < 0) {
-        perror("fsmount");
+        perror("tmpfs: mount");
         return -1;
     }
     if(verbose) {
