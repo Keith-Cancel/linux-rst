@@ -34,7 +34,7 @@ int setup_mount(bool verbose) {
         return -1;
     }
     if(verbose) {
-        puts("===== Configuring: tmpfs =====");
+        puts("====== Configuring: tmpfs ======");
     }
     if(fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0) < 0) {
         perror("tmpfs: size");
@@ -72,7 +72,7 @@ int setup_mount(bool verbose) {
     return mnt;
 }
 
-int setup_devices(int mnt) {
+bool setup_devices(int mnt, bool verbose) {
     const char *const devs[] = {
         "/dev/null",
         "/dev/zero",
@@ -80,16 +80,29 @@ int setup_devices(int mnt) {
         "/dev/random",
         "/dev/urandom",
     };
+    if(verbose) {
+        puts("======= Configuring: /dev ======");
+    }
     for(unsigned i = 0; i < 5; i++) {
-        if(bind_dev(mnt, devs[i], devs[i]) < 0) {
-            return -1;
+        const char* dev = devs[i];
+        if(bind_dev(mnt, dev, dev) < 0) {
+            return false;
+        }
+        if(verbose) {
+            printf("mounted: '%s'\n", dev);
         }
     }
     
     // Failing is fine.
-    bind_path(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
-
-    return 0;
+    int ret = bind_path(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
+    if(verbose) {
+        const char* pass = "";
+        if(ret < 0) {
+            pass = " (failed)";
+        }
+        printf("mounted: '/dev/tty'%s\n", pass);
+    }
+    return true;
 }
 
 int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) {

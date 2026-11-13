@@ -3,8 +3,9 @@
 
 #include <stdbool.h>
 
-int setup_mount(bool verbose);
-int setup_devices(int mnt);
+int  setup_mount(bool verbose);
+bool setup_devices(int mnt, bool verbose);
+
 int bind_dev(int mnt, const char* host_dev, const char* target);
 // Swap the root directory to the mount and close the mount file descriptor.
 int swap_root_to_mount(int mnt);

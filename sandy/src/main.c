@@ -160,6 +160,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if(!setup_devices(mnt, conf.verbose)) {
+        close(mnt);
+        return 1;
+    }
+
 /*
     bool args   = false;
     int bindfs  = 0;
