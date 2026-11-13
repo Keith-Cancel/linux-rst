@@ -22,10 +22,11 @@ rule touch
     command = touch $out
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
-build $obj_dir/main.o:  cc ./src/main.c
-build $obj_dir/mount.o: cc ./src/mount.c | ./include/mount.h
-build $obj_dir/priv.o:  cc ./src/priv.c  | ./include/priv.h
+build $obj_dir/main.o:    cc ./src/main.c
+build $obj_dir/mount.o:   cc ./src/mount.c    | ./include/mount.h
+build $obj_dir/priv.o:    cc ./src/priv.c     | ./include/priv.h
+build $obj_dir/verbose.o: cc ./src/verbose.c  | ./include/verbose.h
 
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
-build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o
+build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o $obj_dir/verbose.o

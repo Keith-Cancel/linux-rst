@@ -9,6 +9,8 @@ typedef struct verbose_s {
     uint32_t color:     1;
 } Verbose;
 
+void verbose_header(Verbose v, const char* title);
+
 static inline Verbose verbose_init(bool enabled, bool color) {
     return (Verbose) {
         .title_len = 16,
