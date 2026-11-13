@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "verbose.h"
 
 typedef enum : uint32_t {
     SUCCESS = 0,
@@ -14,7 +15,7 @@ typedef enum : uint32_t {
     HST_PATH_EMPTY,
 } MountErr;
 
-int  setup_mount(bool verbose);
+int  setup_mount(Verbose v);
 bool setup_devices(int mnt, bool verbose);
 
 int bind_dev(int mnt, const char* host_dev, const char* target);

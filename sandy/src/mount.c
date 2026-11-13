@@ -25,51 +25,50 @@ static void print_verbose(const char *title, const char *value, bool success, bo
 static int enter_namespace(void);
 static int bind_path_old(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
-int setup_mount(bool verbose) {
+int setup_mount(Verbose v) {
+    v = verbose_set_title_width(v, 10);
+    verbose_header(v, "Configuring: tmpfs");
     if (enter_namespace() < 0) {
         return -1;
     }
 
     int fd = fsopen("tmpfs", FSOPEN_CLOEXEC);
+    verbose_line(v, "tmpfs", "fsopen()", fd < 0);
     if(fd < 0) {
         perror("tmpfs: fsopen");
         return -1;
     }
-    if(verbose) {
-        puts("====== Configuring: tmpfs ======");
-    }
-    if(fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0) < 0) {
+
+    int res = fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0);
+    verbose_line(v, "tmpfs size", "128M", res < 0);
+    if(res < 0) {
         perror("tmpfs: size");
         close(fd);
         return -1;
     }
-    if(verbose) {
-        printf("tmpfs size:    128M\n");
-    }
-    if(fsconfig(fd, FSCONFIG_SET_STRING, "mode", "0755", 0) < 0) {
+
+    res = fsconfig(fd, FSCONFIG_SET_STRING, "mode", "0755", 0);
+    verbose_line(v, "tmpfs mode", "0755", res < 0);
+    if(res < 0) {
         perror("tmpfs: mode");
         close(fd);
         return -1;
     }
-    if(verbose) {
-        printf("tmpfs mode:    0755\n");
-    }
-    if(fsconfig(fd, FSCONFIG_CMD_CREATE_EXCL, NULL, NULL, 0) < 0) {
+
+    res = fsconfig(fd, FSCONFIG_CMD_CREATE_EXCL, NULL, NULL, 0);
+    verbose_line(v, "tmpfs", "exclusive", res < 0);
+    if(res < 0) {
         perror("tmpfs: exclusive");
         close(fd);
         return -1;
     }
-    if(verbose) {
-        printf("tmpfs excl:    yes\n");
-    }
+
     int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
+    verbose_line(v, "tmpfs", "fsmount()", mnt < 0);
     close(fd);
     if(mnt < 0) {
         perror("tmpfs: mount");
         return -1;
-    }
-    if(verbose) {
-        printf("tmpfs mounted: yes\n");
     }
     return mnt;
 }
@@ -90,9 +89,7 @@ bool setup_devices(int mnt, bool verbose) {
         if(bind_dev(mnt, dev, dev) < 0) {
             return false;
         }
-        if(verbose) {
-            printf("mounted: '%s'\n", dev);
-        }
+        print_verbose("mounted", dev, true, verbose);
     }
     
     // Failing is fine.
@@ -474,6 +471,7 @@ static void print_verbose(const char *title, const char *value, bool success, bo
     if(!print) {
         return;
     }
+    title = title ? title : "(null)";
     // Copy title, but padded if too short, truncated if too long.
     #define LEN 16
     char buf[LEN + 1] = { 0 };

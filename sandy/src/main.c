@@ -161,9 +161,9 @@ int main(int argc, char **argv) {
     if(conf.help) {
         return 0;
     }
-
     Verbose v = verbose_init(conf.verbose, conf.color);
-    int mnt = setup_mount(conf.verbose);
+
+    int mnt = setup_mount(v);
     if(mnt < 0) {
         fprintf(stderr, "Failed to create mount point");
         return 1;
