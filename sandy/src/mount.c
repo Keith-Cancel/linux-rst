@@ -21,7 +21,7 @@ static int pivot_root(const char *new_root, const char *put_old) {
 static bool is_dir(const char *path);
 static bool is_file(const char *path);
 static int enter_namespace(void);
-static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
+static int bind_path_old(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
 int setup_mount(bool verbose) {
     if (enter_namespace() < 0) {
@@ -94,7 +94,7 @@ bool setup_devices(int mnt, bool verbose) {
     }
     
     // Failing is fine.
-    int ret = bind_path(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
+    int ret = bind_path_old(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
     if(verbose) {
         const char* pass = "";
         if(ret < 0) {
@@ -117,7 +117,7 @@ int bind_dir(int mnt, const char *host_src, const char *target, bool read_only) 
         attr.attr_set |= MOUNT_ATTR_RDONLY;
     }
 
-    return bind_path(mnt, host_src, target, &attr, true, false);
+    return bind_path_old(mnt, host_src, target, &attr, true, false);
 }
 
 int bind_file(int mnt, const char* host_file, const char* target, bool read_only) {
@@ -131,14 +131,14 @@ int bind_file(int mnt, const char* host_file, const char* target, bool read_only
     if(read_only) {
         attr.attr_set |= MOUNT_ATTR_RDONLY;
     }
-    return bind_path(mnt, host_file, target, &attr, false, false);
+    return bind_path_old(mnt, host_file, target, &attr, false, false);
 }
 
 int bind_dev(int mnt, const char* host_dev, const char* target) {
     struct mount_attr attr = {
         .attr_set = MOUNT_ATTR_NOSUID,
     };
-    return bind_path(mnt, host_dev, target, &attr, false, false);
+    return bind_path_old(mnt, host_dev, target, &attr, false, false);
 }
 
 int swap_root_to_mount(int mnt) {
@@ -349,7 +349,7 @@ static bool is_file(const char *path) {
     return S_ISREG(path_stat.st_mode);
 }
 
-static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent) {
+static int bind_path_old(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent) {
     if(host_path == nullptr || host_path[0] == '\0') {
         if(!silent) {
             fprintf(stderr, "host path must be a non-empty path\n");

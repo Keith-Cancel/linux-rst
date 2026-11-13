@@ -2,6 +2,11 @@
 #define MOUNT_UTIL_H
 
 #include <stdbool.h>
+#include <stdint.h>
+
+typedef enum : uint32_t {
+    SUCCESS = 0,
+} ErrCode;
 
 int  setup_mount(bool verbose);
 bool setup_devices(int mnt, bool verbose);
