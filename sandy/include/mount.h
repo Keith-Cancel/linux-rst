@@ -2,19 +2,9 @@
 #define _MOUNT_UTIL_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
+#include "mount_err.h"
 #include "verbose.h"
-
-typedef enum : uint32_t {
-    M_SUCCESS = 0,
-    M_ENV_PATH_NULL,
-    M_ENV_PATH_EMPTY,
-    M_ENV_PATH_TOO_LONG,
-    M_ENV_PATH_BAD_PARENT,
-    M_HST_PATH_NULL,
-    M_HST_PATH_EMPTY,
-} MountErr;
 
 typedef struct path_ctx_s {
     const uint8_t* host_path;
