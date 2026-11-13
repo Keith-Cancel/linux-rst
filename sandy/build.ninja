@@ -22,7 +22,7 @@ rule touch
     command = touch $out
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
-build $obj_dir/main.o:    cc ./src/main.c
+build $obj_dir/main.o:    cc ./src/main.c     | ./include/mount.h ./include/priv.h ./include/verbose.h
 build $obj_dir/mount.o:   cc ./src/mount.c    | ./include/mount.h
 build $obj_dir/priv.o:    cc ./src/priv.c     | ./include/priv.h
 build $obj_dir/verbose.o: cc ./src/verbose.c  | ./include/verbose.h

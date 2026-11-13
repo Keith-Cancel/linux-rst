@@ -4,6 +4,7 @@
 
 #include "mount.h"
 #include "priv.h"
+#include "verbose.h"
 
 
 static void usage(const char *prog) {
@@ -22,6 +23,7 @@ static void usage(const char *prog) {
         "  --exec-host               COMMAND is started from host path\n"
         "  --bind-cmd                Bind COMMAND in the environment as written\n" 
         "  --verbose                 Print extra information as environment is setup\n"
+        "  --color                   Use ANSI control sequences on stdio/stderr\n"
         "  --help                    Show this help\n",
         prog,
         prog,
@@ -48,6 +50,7 @@ typedef struct config_s {
     bool      exec_host;
     bool      help;
     bool      verbose;
+    bool      color;
 } Config;
 
 bool process_args(int argc, char** argv, Config* conf) {
@@ -85,6 +88,11 @@ bool process_args(int argc, char** argv, Config* conf) {
         }
 
         if(strcmp(cur, "--verbose") == 0) {
+            conf->verbose = true;
+            continue;
+        }
+
+        if(strcmp(cur, "--color") == 0) {
             conf->verbose = true;
             continue;
         }
@@ -154,6 +162,7 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    Verbose v = verbose_init(conf.verbose, conf.color);
     int mnt = setup_mount(conf.verbose);
     if(mnt < 0) {
         fprintf(stderr, "Failed to create mount point");
