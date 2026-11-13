@@ -73,7 +73,10 @@ int setup_mount(Verbose v) {
     return mnt;
 }
 
-bool setup_devices(int mnt, bool verbose) {
+bool setup_devices(int mnt, Verbose v) {
+    v = verbose_set_title_width(v, 10);
+    verbose_header(v, "Configuring: /dev");
+
     const char *const devs[] = {
         "/dev/null",
         "/dev/zero",
@@ -81,26 +84,23 @@ bool setup_devices(int mnt, bool verbose) {
         "/dev/random",
         "/dev/urandom",
     };
-    if(verbose) {
-        puts("======= Configuring: /dev ======");
-    }
     for(unsigned i = 0; i < 5; i++) {
         const char* dev = devs[i];
         if(bind_dev(mnt, dev, dev) < 0) {
             return false;
         }
-        print_verbose("mounted", dev, true, verbose);
+        //print_verbose("mounted", dev, true, verbose);
     }
     
     // Failing is fine.
     int ret = bind_path_old(mnt, "/dev/tty", "dev/tty", &(struct mount_attr) { .attr_set = MOUNT_ATTR_NOSUID }, false, true);
-    if(verbose) {
-        const char* pass = "";
-        if(ret < 0) {
-            pass = " (failed)";
-        }
-        printf("mounted: '/dev/tty'%s\n", pass);
-    }
+    //if(verbose) {
+    //    const char* pass = "";
+    //    if(ret < 0) {
+    //        pass = " (failed)";
+    //    }
+    //    printf("mounted: '/dev/tty'%s\n", pass);
+    //}
     return true;
 }
 
@@ -465,31 +465,4 @@ static MountErr make_parent_path_env(int mnt, char* path_buff, bool verbose) {
         *p = '/';
     }
     return SUCCESS;
-}
-
-static void print_verbose(const char *title, const char *value, bool success, bool print) {
-    if(!print) {
-        return;
-    }
-    title = title ? title : "(null)";
-    // Copy title, but padded if too short, truncated if too long.
-    #define LEN 16
-    char buf[LEN + 1] = { 0 };
-    memset(buf, ' ', LEN); // Prefill with spaces
-    // Copy part of string and add ':' at end.
-    int i = 0;
-    for(; i < (LEN-1); i++) {
-        char c = title[i];
-        if(c == '\0') {
-            break;
-        }
-        buf[i] = c;
-    }
-    buf[i] = ':';
-
-    printf("%s%s%s\n",
-        buf,
-        value ? value : "(null)",
-        success ? "" : " (Failed)"
-    );
 }

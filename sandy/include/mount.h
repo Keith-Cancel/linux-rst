@@ -15,8 +15,8 @@ typedef enum : uint32_t {
     HST_PATH_EMPTY,
 } MountErr;
 
-int  setup_mount(Verbose v);
-bool setup_devices(int mnt, bool verbose);
+int  setup_mount(Verbose verbose);
+bool setup_devices(int mnt, Verbose verbose);
 
 int bind_dev(int mnt, const char* host_dev, const char* target);
 // Swap the root directory to the mount and close the mount file descriptor.
