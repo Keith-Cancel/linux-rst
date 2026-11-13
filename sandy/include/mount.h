@@ -1,5 +1,5 @@
-#ifndef MOUNT_UTIL_H
-#define MOUNT_UTIL_H
+#ifndef _MOUNT_UTIL_H
+#define _MOUNT_UTIL_H
 
 #include <stdbool.h>
 #include <stdint.h>
