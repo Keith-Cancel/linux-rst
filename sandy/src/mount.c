@@ -278,7 +278,7 @@ static int enter_namespace(void) {
     return 0;
 }
 
-static const char* skip_slashes(const char* str) {
+static const char* trim_leading_slashes(const char* str) {
     if(str == nullptr) {
         return nullptr;
     }
@@ -330,9 +330,8 @@ static bool is_dir(const char *path) {
 
     struct stat path_stat = { 0 };
     if (stat(path, &path_stat) != 0) {
-        return false; 
+        return false;
     }
-
     return S_ISDIR(path_stat.st_mode) != 0;
 }
 
@@ -343,9 +342,8 @@ static bool is_file(const char *path) {
 
     struct stat path_stat = { 0 };
     if (stat(path, &path_stat) != 0) {
-        return false; 
+        return false;
     }
-    
     return S_ISREG(path_stat.st_mode);
 }
 
@@ -356,7 +354,7 @@ static int bind_path_old(int mnt, const char *host_path, const char *target, str
         }
         return -1;
     }
-    target = skip_slashes(target);
+    target = trim_leading_slashes(target);
     if(target == nullptr || target[0] == '\0') {
         if(!silent) {
             fprintf(stderr, "target path must be a non-empty path\n");
@@ -406,4 +404,33 @@ static int bind_path_old(int mnt, const char *host_path, const char *target, str
 
     close(src);
     return 0;
+}
+
+static MountErr prep_env_path(const char* path, char* buff[], size_t blen) {
+    memset(buff, 0, blen);
+    if(path == nullptr) {
+        return ENV_PATH_NULL;
+    }
+    path = trim_leading_slashes(path);
+
+    // Copy path into the buffer.
+    size_t len = strlen(path);
+    if(len >= (blen - 1)) {
+        return ENV_PATH_TOO_LONG;
+    }
+    memcpy(buff, path, len);
+    buff[len] = '\0';
+
+    // Trim any trailing slashes
+    char* end = buff + len;
+    while(end > buff && end[-1] == '/') {
+        end -= 1;
+        *end = '\0';
+    }
+
+    if(buff[0] == '\0') {
+        return ENV_PATH_EMPTY;
+    }
+
+    return SUCCESS;
 }

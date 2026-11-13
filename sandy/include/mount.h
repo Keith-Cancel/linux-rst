@@ -6,7 +6,10 @@
 
 typedef enum : uint32_t {
     SUCCESS = 0,
-} ErrCode;
+    ENV_PATH_NULL,
+    ENV_PATH_EMPTY,
+    ENV_PATH_TOO_LONG,
+} MountErr;
 
 int  setup_mount(bool verbose);
 bool setup_devices(int mnt, bool verbose);
