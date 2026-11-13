@@ -23,7 +23,7 @@ static bool is_file(const char *path);
 static int enter_namespace(void);
 static int bind_path(int mnt, const char *host_path, const char *target, struct mount_attr* attr, bool dir, bool silent);
 
-int setup_mount(void) {
+int setup_mount(bool verbose) {
     if (enter_namespace() < 0) {
         return -1;
     }
@@ -33,26 +33,41 @@ int setup_mount(void) {
         perror("fsopen");
         return -1;
     }
+    if(verbose) {
+        puts("===== Configuring: tmpfs =====");
+    }
     if(fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0) < 0) {
         perror("fsconfig size");
         close(fd);
         return -1;
+    }
+    if(verbose) {
+        printf("tmpfs size:    128M\n");
     }
     if(fsconfig(fd, FSCONFIG_SET_STRING, "mode", "0755", 0) < 0) {
         perror("fsconfig mode");
         close(fd);
         return -1;
     }
+    if(verbose) {
+        printf("tmpfs mode:    0755\n");
+    }
     if(fsconfig(fd, FSCONFIG_CMD_CREATE_EXCL, NULL, NULL, 0) < 0) {
         perror("fsconfig FSCONFIG_CMD_CREATE_EXCL");
         close(fd);
         return -1;
+    }
+    if(verbose) {
+        printf("tmpfs excl:    yes\n");
     }
     int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
     close(fd);
     if(mnt < 0) {
         perror("fsmount");
         return -1;
+    }
+    if(verbose) {
+        printf("tmpfs mounted: yes\n");
     }
     return mnt;
 }

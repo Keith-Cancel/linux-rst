@@ -154,6 +154,12 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    int mnt = setup_mount(conf.verbose);
+    if(mnt < 0) {
+        fprintf(stderr, "Failed to create mount point");
+        return 1;
+    }
+
 /*
     bool args   = false;
     int bindfs  = 0;

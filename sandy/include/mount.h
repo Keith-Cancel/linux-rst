@@ -1,7 +1,9 @@
 #ifndef MOUNT_UTIL_H
 #define MOUNT_UTIL_H
 
-int setup_mount(void);
+#include <stdbool.h>
+
+int setup_mount(bool verbose);
 int setup_devices(int mnt);
 int bind_dev(int mnt, const char* host_dev, const char* target);
 // Swap the root directory to the mount and close the mount file descriptor.
