@@ -93,7 +93,7 @@ bool process_args(int argc, char** argv, Config* conf) {
         }
 
         if(strcmp(cur, "--color") == 0) {
-            conf->verbose = true;
+            conf->color = true;
             continue;
         }
 

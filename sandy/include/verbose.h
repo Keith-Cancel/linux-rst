@@ -4,18 +4,25 @@
 #include <stdint.h>
 
 typedef struct verbose_s {
-    uint32_t title_len: 8;
-    uint32_t enabled:   1;
-    uint32_t color:     1;
+    uint32_t title_w: 8;
+    uint32_t enabled: 1;
+    uint32_t color:   1;
 } Verbose;
 
+typedef enum : uint32_t {
+    V_OK   = 0,
+    V_FAIL = 1,
+    V_NONE = 2
+} VStatus;
+
 void verbose_header(Verbose v, const char* title);
+void verbose_line(Verbose v, const char* title, const char* value, VStatus stat);
 
 static inline Verbose verbose_init(bool enabled, bool color) {
     return (Verbose) {
-        .title_len = 16,
-        .enabled   = enabled,
-        .color     = color
+        .title_w = 10,
+        .enabled = enabled,
+        .color   = color
     };
 }
 
@@ -27,8 +34,8 @@ static inline bool verbose_color(Verbose v) {
     return v.color == 1;
 }
 
-static inline uint8_t verbose_title_len(Verbose v) {
-    return v.title_len;
+static inline uint8_t verbose_title_width(Verbose v) {
+    return v.title_w;
 }
 
 static inline Verbose verbose_enable(Verbose v) {
@@ -51,14 +58,15 @@ static inline Verbose verbose_disable_color(Verbose v) {
     return v;
 }
 
-static inline Verbose verbose_set_title_len(Verbose v, uint8_t len) {
-    if(len > 32) {
-        len = 32;
+// Clamped to minimum 2, and max 32.
+static inline Verbose verbose_set_title_width(Verbose v, uint8_t width) {
+    if(width > 32) {
+        width = 32;
     }
-    if(len < 2) {
-        len = 2;
+    if(width < 2) {
+        width = 2;
     }
-    v.title_len = len;
+    v.title_w = width;
     return v;
 }
 
