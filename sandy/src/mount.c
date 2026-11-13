@@ -434,3 +434,13 @@ static MountErr prep_env_path(const char* path, char* buff[], size_t blen) {
 
     return SUCCESS;
 }
+
+static MountErr check_host_path(const char* path) {
+    if(path == nullptr) {
+        return HST_PATH_NULL;
+    }
+    if(path[0] == '\0') {
+        return HST_PATH_EMPTY;
+    }
+    return SUCCESS;
+}
