@@ -1,6 +1,7 @@
 #include "diag.h"
 
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <inttypes.h>
 #include <stdatomic.h>
@@ -71,9 +72,8 @@ static size_t add_file(uint8_t* buff, const char* file, uint32_t line) {
     }
 
     uint8_t* pos = buff;
-    //memset(pos, ' ', WIDTH + 10);
     if(color) {
-        memcpy(pos, &(uint8_t[4]) { 0x1b, '[', '1', 'm' }, 4);
+        memcpy(pos, &(uint8_t[4]) { 0x1b, '[', '2', 'm' }, 4);
         pos += 4;
     }
 
@@ -99,18 +99,32 @@ static size_t add_file(uint8_t* buff, const char* file, uint32_t line) {
 
 #define BUFF_SZ 512
 void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, bool use_errno) {
+    int e = 0;
     uint8_t buff[BUFF_SZ];
     if(level < get_level()) {
         return;
+    }
+    if(use_errno) {
+        e = errno;
     }
 
     uint8_t* pos = buff;
     pos += add_level(pos, level);
     pos += add_file(pos, file, line);
 
-    *pos = 'a';
-    *(pos + 1) = '\n';
-    size_t amt = (pos + 2) - buff;
+    // Add 1 so there is room for new line.
+    size_t free = BUFF_SZ - ((pos + 1) - buff);
+    for(size_t i = 0; i < free; i++) {
+        char c = msg[i];
+        if(c == '\0') {
+            break;
+        }
+        *pos = c;
+        pos += 1;
+    }
+    *pos = '\n';
+    pos += 1;
+
+    size_t amt = pos - buff;
     fwrite(buff, 1, amt, stdout);
 }
-// src/diag.c:5:19
