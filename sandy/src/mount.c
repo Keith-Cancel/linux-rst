@@ -20,42 +20,47 @@ int setup_mount(Verbose v) {
         return -1;
     }
 
-    int fd = fsopen("tmpfs", FSOPEN_CLOEXEC);
+    int fd  = fsopen("tmpfs", FSOPEN_CLOEXEC);
+    int err = errno;
     verbose_line(v, "tmpfs", "fsopen()", fd < 0);
     if(fd < 0) {
-        perror("tmpfs: fsopen");
+        D_ERROR("Failed to open 'tmpfs' filesystem context via fsopen()", err);
         return -1;
     }
 
     int res = fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0);
+    err     = errno;
     verbose_line(v, "tmpfs size", "128M", res < 0);
     if(res < 0) {
-        perror("tmpfs: size");
+        D_ERROR("Failed to set tmpfs option 'size=128M' via fsconfig()", err);
         close(fd);
         return -1;
     }
 
     res = fsconfig(fd, FSCONFIG_SET_STRING, "mode", "0755", 0);
+    err = errno;
     verbose_line(v, "tmpfs mode", "0755", res < 0);
     if(res < 0) {
-        perror("tmpfs: mode");
+        D_ERROR("Failed to set tmpfs option 'mode=0755' via fsconfig()", err);
         close(fd);
         return -1;
     }
 
     res = fsconfig(fd, FSCONFIG_CMD_CREATE_EXCL, NULL, NULL, 0);
+    err = errno;
     verbose_line(v, "tmpfs", "exclusive", res < 0);
     if(res < 0) {
-        perror("tmpfs: exclusive");
+        D_ERROR("Failed to create exclusive tmpfs instance via fsconfig()", err);
         close(fd);
         return -1;
     }
 
     int mnt = fsmount(fd, FSMOUNT_CLOEXEC, MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV);
+    err     = errno;
     verbose_line(v, "tmpfs", "fsmount()", mnt < 0);
     close(fd);
     if(mnt < 0) {
-        perror("tmpfs: mount");
+        D_ERROR("Failed to create detached tmpfs mount", err);
         return -1;
     }
     return mnt;
@@ -136,7 +141,7 @@ static bool enter_namespace(void) {
     }
 
     // Change mount point propagation for root to private.
-    if (mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
+    if(mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL) < 0) {
         D_ERROR("Failed to make process mounts private", errno);
         return false;
     }
