@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "diag.h"
 #include "mount.h"
 #include "priv.h"
 #include "verbose.h"
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
     if(conf.help) {
         return 0;
     }
+    diag_init(DIAG_DEBUG, conf.color);
     Verbose v = verbose_init(conf.verbose, conf.color);
 
     int mnt = setup_mount(v);
@@ -169,10 +171,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if(!setup_devices(mnt, v)) {
-        close(mnt);
-        return 1;
-    }
+    //if(!setup_devices(mnt, v)) {
+    //    close(mnt);
+    //    return 1;
+    //}
 
 /*
     bool args   = false;
