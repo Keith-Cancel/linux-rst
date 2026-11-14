@@ -12,8 +12,9 @@ typedef enum : uint8_t {
 } DiagLvl;
 
 void diag_init(DiagLvl level, bool use_color);
-void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, bool use_errno);
+void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, int err);
 
+// The print either just the message or message + errno.
 #define D_DEBUG(msg, ...) _DIAG_EMIT(DIAG_DEBUG,  (msg) __VA_OPT__(,) __VA_ARGS__)
 #define D_INFO(msg, ...)  _DIAG_EMIT(DIAG_INFO,   (msg) __VA_OPT__(,) __VA_ARGS__)
 #define D_WARN(msg, ...)  _DIAG_EMIT(DIAG_WARN,   (msg) __VA_OPT__(,) __VA_ARGS__)
@@ -25,7 +26,7 @@ void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, 
         (lvl), \
         __FILE__, \
         __LINE__, \
-        _DIAG_EMIT_ARGS(__VA_ARGS__, true) \
+        _DIAG_EMIT_ARGS(__VA_ARGS__, -1) \
     )
 
 

@@ -6,6 +6,9 @@
 #include <inttypes.h>
 #include <stdatomic.h>
 
+// Defined in strerror_r.c
+int strerror_r_wrap(int errnum, char *buf, size_t buflen);
+
 static const char LVL_STR[8][20] = {
     [DIAG_DEBUG]      = "[DEBUG] ",
     [DIAG_INFO]       = "[INFO ] ",
@@ -97,15 +100,47 @@ static size_t add_file(uint8_t* buff, const char* file, uint32_t line) {
     return (pos + 2) - buff;
 }
 
+// Will always return at most len - 1 buffer space used.
+static size_t write_errno(uint8_t* buff, size_t len, int errnum) {
+    // snprintf and strerror_r always write a null byte byte
+    // if the buffer is larger enough to write even a byte.
+    // we always exclude that so it will be len - 1 at most.
+    // Enough to always ensure I can write a new line.
+    if(len == 0) {
+        return 0;
+    }
+    uint8_t* pos = buff;
+    int      amt = snprintf((char*)pos, len, ": Errno(%d): ", errnum);
+    if(amt < 0) {
+        return 0;
+    }
+    if((size_t)amt >= len) {
+        // Subtract 1 for the null byte.
+        // Additionally, the saves a byte for the new line.
+        return len - 1;
+    }
+    pos  += amt;
+    len  -= amt;
+
+    errno = 0;
+    // Does not have a defined error return value only sets errno on failure.
+    strerror_r_wrap(errnum, (char*)pos, len);
+    if(errno == 0) {
+        // find end of str.
+        uint8_t* end = pos + len;
+        while(pos < end && *pos != '\0') {
+            pos += 1;
+        }
+    }
+
+    return pos - buff;
+}
+
 #define BUFF_SZ 512
-void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, bool use_errno) {
-    int e = 0;
+void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, int errnum) {
     uint8_t buff[BUFF_SZ];
     if(level < get_level()) {
         return;
-    }
-    if(use_errno) {
-        e = errno;
     }
 
     uint8_t* pos = buff;
@@ -122,9 +157,17 @@ void diag_emit(DiagLvl level, const char* file, uint32_t line, const char* msg, 
         *pos = c;
         pos += 1;
     }
+
+    // If success was provided we want to print it.
+    if(errnum >= 0) {
+        // write_errno will only ever consume
+        // free - 1 so we always have space for the new line.
+        free = BUFF_SZ - (pos - buff);
+        pos += write_errno(pos, free, errnum);
+    }
+
+    // Add new line.
     *pos = '\n';
     pos += 1;
-
-    size_t amt = pos - buff;
-    fwrite(buff, 1, amt, stdout);
+    fwrite(buff, 1, pos - buff, stderr);
 }

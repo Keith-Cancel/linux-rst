@@ -22,12 +22,13 @@ rule touch
     command = touch $out
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
-build $obj_dir/diag.o:    cc ./src/diag.c     | ./include/diag.h
-build $obj_dir/main.o:    cc ./src/main.c     | ./include/mount.h ./include/mount_err.h ./include/priv.h ./include/verbose.h
-build $obj_dir/mount.o:   cc ./src/mount.c    | ./include/mount.h ./include/mount_err.h
-build $obj_dir/priv.o:    cc ./src/priv.c     | ./include/priv.h
-build $obj_dir/verbose.o: cc ./src/verbose.c  | ./include/verbose.h
+build $obj_dir/diag.o:       cc ./src/diag.c       | ./include/diag.h
+build $obj_dir/main.o:       cc ./src/main.c       | ./include/mount.h ./include/mount_err.h ./include/diag.h ./include/priv.h ./include/verbose.h
+build $obj_dir/mount.o:      cc ./src/mount.c      | ./include/mount.h ./include/mount_err.h
+build $obj_dir/priv.o:       cc ./src/priv.c       | ./include/priv.h
+build $obj_dir/strerror_r.o: cc ./src/strerror_r.c | ./include/priv.h
+build $obj_dir/verbose.o:    cc ./src/verbose.c    | ./include/verbose.h
 
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
-build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o $obj_dir/verbose.o $obj_dir/diag.o
+build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o $obj_dir/verbose.o $obj_dir/diag.o $obj_dir/strerror_r.o
