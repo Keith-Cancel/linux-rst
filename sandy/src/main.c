@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
 
     int mnt = setup_mount(v);
     if(mnt < 0) {
-        fprintf(stderr, "Failed to create mount point");
+        fwrite("Failed to create mount point\n", 1, 29, stderr);
         return 1;
     }
 
