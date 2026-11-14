@@ -11,7 +11,8 @@
 #include <unistd.h>
 #include <sys/mount.h>
 
-static bool enter_namespace(void);
+static bool     enter_namespace(void);
+static MountErr prep_and_check_paths(PathCtx* ctx);
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -64,6 +65,16 @@ int setup_mount(Verbose v) {
         return -1;
     }
     return mnt;
+}
+
+MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
+    MountErr ret = prep_and_check_paths(ctx);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+
+    return M_SUCCESS;
 }
 
 static bool write_str(const char *path, const char *str) {
@@ -146,4 +157,72 @@ static bool enter_namespace(void) {
         return false;
     }
     return true;
+}
+
+static const uint8_t* trim_leading_slashes(const uint8_t* str) {
+    if(str == nullptr) {
+        return nullptr;
+    }
+    while(*str == '/') {
+        str++;
+    }
+    return str;
+}
+
+static MountErr prep_env_path(const uint8_t* path, uint8_t buff[], size_t blen) {
+    if(path == nullptr) {
+        return M_ENV_PATH_NULL;
+    }
+    if(blen == 0) {
+        return M_ENV_PATH_TOO_LONG;
+    }
+    memset(buff, 0, blen);
+    path = trim_leading_slashes(path);
+
+    // Copy path into the buffer.
+    size_t len = 0;
+    while(len < blen) {
+        uint8_t cur = path[len];
+        buff[len] = cur;
+        if(cur == '\0') {
+            break;
+        }
+        len += 1;
+    }
+    if(len >= blen) {
+        // add null just incase I print it or something.
+        buff[blen - 1] = '\0'; 
+        return M_ENV_PATH_TOO_LONG;
+    }
+
+    // Trim any trailing slashes
+    uint8_t* end = buff + len;
+    while(end > buff && end[-1] == '/') {
+        end -= 1;
+        *end = '\0';
+    }
+
+    if(buff[0] == '\0') {
+        return M_ENV_PATH_EMPTY;
+    }
+
+    return M_SUCCESS;
+}
+
+static MountErr check_host_path(const uint8_t* path) {
+    if(path == nullptr) {
+        return M_HST_PATH_NULL;
+    }
+    if(path[0] == '\0') {
+        return M_HST_PATH_EMPTY;
+    }
+    return M_SUCCESS;
+}
+
+static MountErr prep_and_check_paths(PathCtx* ctx) {
+    MountErr ret = check_host_path(ctx->host_path);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+    return prep_env_path(ctx->env_path, ctx->buff, ctx->buff_cap);
 }

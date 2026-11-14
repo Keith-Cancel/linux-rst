@@ -17,8 +17,7 @@ typedef struct path_ctx_s {
 int  setup_mount(Verbose verbose);
 bool setup_devices(int mnt, Verbose verbose);
 
-MountErr bind_dev(int mnt, PathCtx* ctx, Verbose verbose);
-int bind_dev_old(int mnt, const char* host_dev, const char* target);
+MountErr bind_dev(PathCtx* ctx, Verbose verbose);
 
 // Swap the root directory to the mount and close the mount file descriptor.
 int swap_root_to_mount(int mnt);
