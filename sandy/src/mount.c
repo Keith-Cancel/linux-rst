@@ -9,10 +9,13 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <sys/mount.h>
 
-static bool     enter_namespace(void);
+static bool     is_dev              (int fd);
+static bool     enter_namespace     (void);
 static MountErr prep_and_check_paths(PathCtx* ctx);
+static MountErr open_host_tree      (PathCtx* ctx, unsigned flags, int* fd_out);
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -71,6 +74,17 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     MountErr ret = prep_and_check_paths(ctx);
     if(ret != M_SUCCESS) {
         return ret;
+    }
+    
+    int host = -1;
+    ret = open_host_tree(ctx, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC, &host);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    if(!is_dev(host)) {
+        close(host);
+        return M_HST_PATH_NOT_DEV;
     }
 
 
@@ -225,4 +239,36 @@ static MountErr prep_and_check_paths(PathCtx* ctx) {
         return ret;
     }
     return prep_env_path(ctx->env_path, ctx->buff, ctx->buff_cap);
+}
+
+static bool is_dev(int fd) {
+    struct stat path_stat = { 0 };
+    if (fstat(fd, &path_stat) != 0) {
+        return false;
+    }
+    return S_ISBLK(path_stat.st_mode) | S_ISCHR(path_stat.st_mode);
+}
+
+static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
+    int fd = open_tree(AT_FDCWD, (const char*)(ctx->host_path), flags | OPEN_TREE_CLOEXEC);
+    if(fd >= 0) {
+        *fd_out = fd;
+        return M_SUCCESS;
+    }
+    int errnum = errno;
+    switch(errnum) {
+        case EPERM:
+        case EACCES:
+            return M_HST_PATH_PERM;
+        case ENAMETOOLONG:
+            return M_HST_PATH_TOO_LONG;
+        case ENOENT:
+            return M_HST_PATH_NOT_FOUND;
+        case ELOOP:
+        case ENOTDIR:
+            return M_HST_PATH_UNWALKABLE;
+        default:
+            D_WARN("A system error occurred for open_tree() for a host path.", errnum);
+            return M_HST_PATH_SYS_ERR;
+    }
 }
