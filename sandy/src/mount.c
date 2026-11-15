@@ -12,10 +12,12 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 
-static bool     is_dev              (int fd);
-static bool     enter_namespace     (void);
-static MountErr prep_and_check_paths(PathCtx* ctx);
-static MountErr open_host_tree      (PathCtx* ctx, unsigned flags, int* fd_out);
+static bool is_dev         (int fd);
+static bool enter_namespace(void);
+
+static MountErr prep_and_check_paths (PathCtx* ctx);
+static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
+static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v);
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -75,7 +77,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(ret != M_SUCCESS) {
         return ret;
     }
-    
+
     int host = -1;
     ret = open_host_tree(ctx, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC, &host);
     if(ret != M_SUCCESS) {
@@ -85,6 +87,12 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(!is_dev(host)) {
         close(host);
         return M_HST_PATH_NOT_DEV;
+    }
+
+    ret = mkdir_parent_env_path(ctx, verbose);
+    if(ret != M_SUCCESS) {
+        close(host);
+        return ret;
     }
 
 
@@ -271,4 +279,49 @@ static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
             D_WARN("A system error occurred for open_tree() for a host path.", errnum);
             return M_HST_PATH_SYS_ERR;
     }
+}
+
+// Make all the parent directories of environment path.
+// Note path buff to be populated with a string.
+static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v) {
+    int mnt       = ctx->mount_fd;
+    uint8_t* buff = ctx->buff;
+    for(uint8_t* p = buff; *p != '\0'; p++) {
+        if(*p != '/') {
+            continue;
+        }
+        // Shorten string.
+        *p      = '\0';
+        int res = mkdirat(mnt, (char*)buff, 0755);
+        int err = errno;
+
+        // Don't print verbose line if it already exists.
+        if(res < 0 && err == EEXIST) {
+            // Restore string.
+            *p = '/';
+            continue;
+        }
+        verbose_line(v, "mkdir_env", (char*)buff, res < 0);
+        if(res >= 0) {
+            // Restore string.
+            *p = '/';
+            continue;
+        }
+        switch(err) {
+            case EPERM:
+            case EACCES:
+                return M_ENV_PATH_PERM;
+            case ENAMETOOLONG:
+                return M_ENV_PATH_TOO_LONG;
+            case ENOENT:
+                return M_ENV_PATH_PARENT_NOT_FOUND;
+            case ELOOP:
+            case ENOTDIR:
+                return M_ENV_PATH_UNWALKABLE;
+            default:
+                D_WARN("A system error occurred for mkdirat() for an environment path.", err);
+                return M_ENV_PATH_PARENT_SYS_ERR;
+        }
+    }
+    return M_SUCCESS;
 }
