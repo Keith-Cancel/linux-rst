@@ -12,12 +12,13 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 
-static bool is_dev         (int fd);
+static bool fd_is_dev      (int fd);
 static bool enter_namespace(void);
 
-static MountErr prep_and_check_paths (PathCtx* ctx);
 static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
-static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v);
+static MountErr mkdir_env_parent     (PathCtx* ctx, Verbose v);
+static MountErr prep_and_check_paths (PathCtx* ctx);
+
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -84,17 +85,16 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
         return ret;
     }
 
-    if(!is_dev(host)) {
+    if(!fd_is_dev(host)) {
         close(host);
         return M_HST_PATH_NOT_DEV;
     }
 
-    ret = mkdir_parent_env_path(ctx, verbose);
+    ret = mkdir_env_parent(ctx, verbose);
     if(ret != M_SUCCESS) {
         close(host);
         return ret;
     }
-
 
     return M_SUCCESS;
 }
@@ -249,12 +249,23 @@ static MountErr prep_and_check_paths(PathCtx* ctx) {
     return prep_env_path(ctx->env_path, ctx->buff, ctx->buff_cap);
 }
 
-static bool is_dev(int fd) {
+static bool fd_is_dev(int fd) {
     struct stat path_stat = { 0 };
     if (fstat(fd, &path_stat) != 0) {
         return false;
     }
     return S_ISBLK(path_stat.st_mode) | S_ISCHR(path_stat.st_mode);
+}
+
+static bool is_dirat(int dirfd, const uint8_t *path) {
+    if(path == nullptr) {
+        return false;
+    }
+    struct stat path_stat = { 0 };
+    if(fstatat(dirfd, (const char*)path, &path_stat, 0) != 0) {
+        return false;
+    }
+    return S_ISDIR(path_stat.st_mode) != 0;
 }
 
 static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
@@ -281,53 +292,62 @@ static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
     }
 }
 
-// Make all the parent directories of environment path.
-// Note path buff to be populated with a string.
-static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v) {
-    int mnt       = ctx->mount_fd;
-    uint8_t* buff = ctx->buff;
-
-    uint8_t* old  = buff;
-    int      res  = 0;
-    for(uint8_t* p = buff; *p != '\0'; p++) {
-        if(*p != '/') {
-            continue;
-        }
-        // Shorten string.
-        *p  = '\0';
-        old = p;
-        res = mkdirat(mnt, (char*)buff, 0755);
-        // Restore string.
-        *p = '/';
-        if(res < 0 && errno != EEXIST) {
-            break;
-        }
+static MountErr mkdir_env(int mnt, const uint8_t* path, mode_t mode, Verbose v) {
+    int res = mkdirat(mnt, (const char*)path, mode);
+    if(res >= 0) {
+        verbose_line(v, "mkdir_env", (const char*)path, V_OK);
+        return M_SUCCESS;
     }
 
     int errnum = errno;
-    if(verbose_enabled(v)) {
-        *old = '\0'; // Shorten again so I only print the parent component.
-        verbose_line(v, "mkdir_env", (char*)buff, res < 0);
-        *old = '/'; // Restore
+    // If it was a directory count it as a success.
+    // Also don't want to print vebose for existing dirs.
+    if(errnum == EEXIST && is_dirat(mnt, path)) {
+        return M_SUCCESS;
     }
 
-    if(res < 0) {
-        switch(errnum) {
-            case EPERM:
-            case EACCES:
-                return M_ENV_PATH_PERM;
-            case ENAMETOOLONG:
-                return M_ENV_PATH_TOO_LONG;
-            case ENOENT:
-                return M_ENV_PATH_PARENT_NOT_FOUND;
-            case ELOOP:
-            case ENOTDIR:
-                return M_ENV_PATH_UNWALKABLE;
-            case EEXIST:
-                return M_SUCCESS;
-            default:
-                D_WARN("A system error occurred for mkdirat() for an environment path.", errnum);
-                return M_ENV_PATH_PARENT_SYS_ERR;
+    verbose_line(v, "mkdir_env", (const char*)path, V_FAIL);
+
+    switch(errnum) {
+        case EPERM:
+        case EACCES:
+            return M_ENV_PATH_PERM;
+        case ENAMETOOLONG:
+            return M_ENV_PATH_TOO_LONG;
+        case ENOENT:
+            return M_ENV_PATH_NOT_FOUND;
+        case ELOOP:
+        case ENOTDIR:
+            return M_ENV_PATH_UNWALKABLE;
+        case EEXIST:
+            return M_ENV_PATH_NOT_DIR;
+        case EROFS:
+            return M_ENV_PATH_READ_ONLY;
+        default:
+            D_WARN("A system error occurred for mkdirat() for an environment path.", errnum);
+            return M_ENV_PATH_SYS_ERR;
+    }
+}
+
+// Make all the parent directories of the environment path.
+// Note path buff to be populated with a string.
+static MountErr mkdir_env_parent(PathCtx* ctx, Verbose v) {
+    uint8_t* buf = ctx->buff;
+    int      mnt = ctx->mount_fd;
+    for(uint8_t* cur = buf; *cur != '\0'; cur++) {
+        if(*cur != '/') {
+            continue;
+        }
+        // Shorten string.
+        *cur = '\0';
+
+        MountErr e = mkdir_env(mnt, buf, 0755, v);
+
+        // Restore string.
+        *cur = '/';
+        
+        if(e != M_SUCCESS) {
+            return e;
         }
     }
     return M_SUCCESS;
