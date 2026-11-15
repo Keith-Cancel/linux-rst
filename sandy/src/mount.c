@@ -286,28 +286,33 @@ static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
 static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v) {
     int mnt       = ctx->mount_fd;
     uint8_t* buff = ctx->buff;
+
+    uint8_t* old  = buff;
+    int      res  = 0;
     for(uint8_t* p = buff; *p != '\0'; p++) {
         if(*p != '/') {
             continue;
         }
         // Shorten string.
-        *p      = '\0';
-        int res = mkdirat(mnt, (char*)buff, 0755);
-        int err = errno;
+        *p  = '\0';
+        old = p;
+        res = mkdirat(mnt, (char*)buff, 0755);
+        // Restore string.
+        *p = '/';
+        if(res < 0 && errno != EEXIST) {
+            break;
+        }
+    }
 
-        // Don't print verbose line if it already exists.
-        if(res < 0 && err == EEXIST) {
-            // Restore string.
-            *p = '/';
-            continue;
-        }
+    int errnum = errno;
+    if(verbose_enabled(v)) {
+        *old = '\0'; // Shorten again so I only print the parent component.
         verbose_line(v, "mkdir_env", (char*)buff, res < 0);
-        if(res >= 0) {
-            // Restore string.
-            *p = '/';
-            continue;
-        }
-        switch(err) {
+        *old = '/'; // Restore
+    }
+
+    if(res < 0) {
+        switch(errnum) {
             case EPERM:
             case EACCES:
                 return M_ENV_PATH_PERM;
@@ -318,8 +323,10 @@ static MountErr mkdir_parent_env_path(PathCtx* ctx, Verbose v) {
             case ELOOP:
             case ENOTDIR:
                 return M_ENV_PATH_UNWALKABLE;
+            case EEXIST:
+                return M_SUCCESS;
             default:
-                D_WARN("A system error occurred for mkdirat() for an environment path.", err);
+                D_WARN("A system error occurred for mkdirat() for an environment path.", errnum);
                 return M_ENV_PATH_PARENT_SYS_ERR;
         }
     }
