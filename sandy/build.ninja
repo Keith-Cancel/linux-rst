@@ -23,8 +23,8 @@ rule touch
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
 build $obj_dir/diag.o:       cc ./src/diag.c       | ./include/diag.h
-build $obj_dir/main.o:       cc ./src/main.c       | ./include/mount.h ./include/mount_err.h ./include/diag.h ./include/priv.h ./include/verbose.h
-build $obj_dir/mount.o:      cc ./src/mount.c      | ./include/mount.h ./include/mount_err.h
+build $obj_dir/main.o:       cc ./src/main.c       | ./include/mount.h ./include/diag.h ./include/priv.h ./include/verbose.h
+build $obj_dir/mount.o:      cc ./src/mount.c      | ./include/mount.h
 build $obj_dir/priv.o:       cc ./src/priv.c       | ./include/priv.h
 build $obj_dir/strerror_r.o: cc ./src/strerror_r.c | ./include/priv.h
 build $obj_dir/verbose.o:    cc ./src/verbose.c    | ./include/verbose.h
