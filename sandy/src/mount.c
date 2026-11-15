@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <limits.h>
+#include <inttypes.h>
 
 #include <fcntl.h>
 #include <sched.h>
@@ -74,6 +76,50 @@ int setup_mount(Verbose v) {
     return mnt;
 }
 
+bool setup_devices(int mnt, Verbose v) {
+    uint8_t buff[PATH_MAX + 1];
+    PathCtx ctx = {
+        .mount_fd  = mnt,
+        .buff      = buff,
+        .buff_cap  = PATH_MAX + 1
+    };
+
+    v = verbose_set_title_width(v, 10);
+    verbose_header(v, "Configuring: /dev");
+
+    const char *const devs[5] = {
+        "/dev/null",
+        "/dev/zero",
+        "/dev/full",
+        "/dev/random",
+        "/dev/urandom",
+    };
+    for(unsigned i = 0; i < 5; i++) {
+        const char* dev = devs[i];
+
+        ctx.env_path  = (const uint8_t*)dev;
+        ctx.host_path = (const uint8_t*)dev;
+
+        MountErr e = bind_dev(&ctx, v);
+        verbose_line(v, "mount", dev, e != M_SUCCESS);
+        if(e != M_SUCCESS) {
+            print_mount_error(&ctx, e);
+            return false;
+        }
+    }
+
+    ctx.env_path  = (const uint8_t*)"/dev/tty";
+    ctx.host_path = (const uint8_t*)"/dev/tty";
+
+    MountErr e = bind_dev(&ctx, v);
+    verbose_line(v, "mount", "/dev/tty", e != M_SUCCESS);
+    if(verbose_enabled(v) && e != M_SUCCESS) {
+        print_mount_error(&ctx, e);
+    }
+
+    return true;
+}
+
 MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     MountErr ret = prep_and_check_paths(ctx);
     if(ret != M_SUCCESS) {
@@ -124,6 +170,81 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     }
 
     return M_SUCCESS;
+}
+
+void print_mount_error(PathCtx* ctx, MountErr error) {
+    const char* env = ctx->env_path  ? (const char*)ctx->env_path : "(nullptr)";
+    const char* hst = ctx->host_path ? (const char*)ctx->host_path : "(nullptr)";
+
+    char buff[513] = { 0 };
+    const char* out = buff;
+    switch(error) {
+        case M_SUCCESS:
+            out = "SUCCESS - No Mounting error occurred\n";
+            break;
+        // Environment Path errors
+        case M_ENV_PATH_NULL:
+            snprintf(buff, 512, "Environment mount path is null for: '%s'\n", hst);
+            break;
+        case M_ENV_PATH_EMPTY:
+            snprintf(buff, 512, "Environment mount path is empty for: '%s'\n", hst);
+            break;
+        case M_ENV_PATH_TOO_LONG:
+            fprintf(stderr, "Environment path too long: '%s'\n", env);
+            return;
+        case M_ENV_PATH_NOT_FOUND:
+            snprintf(buff, 512, "Environment path not found: '%s'\n", env);
+            break;
+        case M_ENV_PATH_UNWALKABLE:
+            snprintf(buff, 512, "A component of the environment path is not walkable: '%s'\n", env);
+            break;
+        case M_ENV_PATH_EXISTS:
+            snprintf(buff, 512, "Environment path already exists: '%s'\n", env);
+            break;
+        case M_ENV_PATH_NOT_DIR:
+            snprintf(buff, 512, "A component of the environment path is not a directory: '%s'\n", env);
+            break;
+        case M_ENV_PATH_PERM:
+            snprintf(buff, 512, "Permission denied to create environment path: '%s'\n", env);
+            break;
+        case M_ENV_PATH_READ_ONLY:
+            snprintf(buff, 512, "Environment path is on a read only file system: '%s'\n", env);
+            break;
+        case M_ENV_PATH_SYS_ERR:
+            snprintf(buff, 512, "Environment path encountered a system error: '%s'\n", env);
+            break;
+        // Host path errors
+        case M_HST_PATH_NULL:
+            snprintf(buff, 512, "Host mount path is null for: '%s'\n", env);
+            break;
+        case M_HST_PATH_EMPTY:
+            snprintf(buff, 512, "Host mount path is empty for: '%s'\n", env);
+            break;
+        case M_HST_PATH_TOO_LONG:
+            fprintf(stderr, "Host path too long: '%s'\n", hst);
+            return;
+        case M_HST_PATH_NOT_FOUND:
+            snprintf(buff, 512, "Host path not found: '%s'\n", hst);
+            break;
+        case M_HST_PATH_UNWALKABLE:
+            snprintf(buff, 512, "A component of the host path is not walkable: '%s'\n", hst);
+            break;
+        case M_HST_PATH_NOT_DEV:
+            snprintf(buff, 512, "Host path is not a device: '%s'\n", hst);
+            break;
+        case M_HST_PATH_PERM:
+            snprintf(buff, 512, "Permission denied to host path: '%s'\n", hst);
+            break;
+        case M_HST_PATH_SYS_ERR:
+            snprintf(buff, 512, "Host path encountered a system error: '%s'\n", hst);
+            break;
+        default:
+            snprintf(buff, 512, "Unknown mount error: %" PRIu32 "\n", error);
+            break;
+    }
+    
+    size_t len = strlen(out);
+    fwrite(out, 1, len, stderr);
 }
 
 static bool write_str(const char *path, const char *str) {

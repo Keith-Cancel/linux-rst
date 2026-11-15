@@ -170,11 +170,11 @@ int main(int argc, char **argv) {
         fwrite("Failed to create mount point\n", 1, 29, stderr);
         return 1;
     }
-
-    //if(!setup_devices(mnt, v)) {
-    //    close(mnt);
-    //    return 1;
-    //}
+    
+    if(!setup_devices(mnt, v)) {
+        close(mnt);
+        return 1;
+    }
 
 /*
     bool args   = false;
