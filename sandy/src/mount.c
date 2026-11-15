@@ -101,6 +101,28 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
         return M_HST_PATH_NOT_DEV;
     }
 
+    struct mount_attr attr = {
+        .attr_set = MOUNT_ATTR_NOSUID,
+    };
+    int res = mount_setattr(host, "", AT_EMPTY_PATH, &attr, sizeof(struct mount_attr));
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for mount_setattr() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
+    }
+
+    // Attach src file to mnt.
+    res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for move_mount() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
+    }
+
     return M_SUCCESS;
 }
 
