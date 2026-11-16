@@ -15,6 +15,7 @@ typedef enum : uint32_t {
 #define CF_E_CMD(v)  (0x200 | (uint8_t)(v))
 #define CF_E_SYS(v)  (0xf00 | (uint8_t)(v))
 
+// The second byte determines the kinda of error
 typedef enum : uint32_t {
     CF_SUCCESS = CF_E_GEN(0),
 
@@ -26,12 +27,16 @@ typedef enum : uint32_t {
     CF_NO_MEM      = CF_E_FILE(5), // Could not allocate memory for the file
     CF_UNEXPEC_EOF = CF_E_FILE(6), // While reading the file an EOF happened early.
 
+    // For cmd errors
+    // the high nibble is the kind
+    // the low  nibble is the error for that kind.
     CF_CMD_DONE         = CF_E_CMD(0x00), // No more lines to process
     CF_CMD_EMPTY        = CF_E_CMD(0x01), // The command's line was empty.
 
     CF_CMD_KIND_FMT     = CF_E_CMD(0x10), // The line's <kind> was formatted incorrectly.
     CF_CMD_KIND_UNKNOWN = CF_E_CMD(0x11), // The line's command <kind> is unrecognized.
 
+    // DST and SRC will be the exact same except the high nibble.
     CF_CMD_DST_UNOPENED = CF_E_CMD(0x20), // The line's <dst> is missing an opening `"`
     CF_CMD_DST_UNCLOSED = CF_E_CMD(0x21), // The line's <dst> is missing a closing `"`
 
