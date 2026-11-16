@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/syscall.h>
 
 static bool fd_is_dev      (int fd);
 static bool fd_is_dir      (int fd);
@@ -24,6 +25,10 @@ static MountErr mkdir_env            (int mnt, const uint8_t* path, mode_t mode,
 static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose verbose);
 static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
 static MountErr prep_and_check_paths (PathCtx* ctx);
+
+static int pivot_root(const char *new_root, const char *put_old) {
+    return syscall(SYS_pivot_root, new_root, put_old);
+}
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -120,6 +125,123 @@ bool setup_devices(int mnt, Verbose v) {
     }
 
     return true;
+}
+
+bool swap_root_to_mount(int mnt, Verbose v) {
+    verbose_header(v, "Swapping Process root ('/')");
+    if(mnt < 0) {
+        D_ERROR("Mount file descriptor is invalid");
+        return false;
+    }
+
+
+    bool  ret     = false;
+    int   fd      = -1;
+    char* ptr     = nullptr;
+    int   err     = 0;
+    int   res     = 0;
+
+    char  tmp[23] = "/tmp/sandy_root_XXXXXX";
+    ptr = mkdtemp(tmp);
+    err = errno;
+
+    verbose_line(v, "mkdtemp", tmp, ptr == nullptr);
+    if(ptr == nullptr) {
+        D_ERROR("Failed to make temp directory for new root directory", err);
+        goto done;
+    }
+
+    fd  = open("/tmp", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    err = errno;
+
+    verbose_line(v, "open", "/tmp", fd < 0);
+    if(fd < 0) {
+        D_ERROR("Failed to open host '/tmp' directory", err);
+        goto done;
+    }
+
+    res = move_mount(mnt, "", AT_FDCWD, ptr, MOVE_MOUNT_F_EMPTY_PATH);
+    err = errno;
+    
+    verbose_line(v, "mount_mov", ptr, res < 0);
+    if(res < 0) {
+        D_ERROR("Failed move_mount() tmp directory for root", err);
+        goto done;
+    }
+
+    // This man page: https://man7.org/linux/man-pages/man2/pivot_root.2.html
+    // Shows this sequence
+    // chdir(new_root);
+    // pivot_root(".", ".");
+    // umount2(".", MNT_DETACH);
+    // It appears to me that basically old root ontop of mount point
+    // so then when unmount is called it is the first to go.
+    res = chdir(ptr);
+    err = errno;
+
+    verbose_line(v, "chdir", ptr, res < 0);
+    if(res < 0) {
+        // umount2 here because if this fails unlinkat will fail with dev busy.
+        umount2(ptr, MNT_DETACH); 
+        D_ERROR("Failed to chdir() to tmp directory for root", err);
+        goto done;
+    }
+
+    res = pivot_root(".", ".");
+    err = errno;
+
+    verbose_line(v, "pivot_root", "pivot_root(\".\", \".\")", res < 0);
+    if(res < 0) {
+        // umount2 here because if this fails unlinkat will fail with dev busy.
+        umount2(ptr, MNT_DETACH); 
+        D_ERROR("pivot_root(\".\", \".\") failed", err);
+        goto done;
+    }
+
+    res = umount2(".", MNT_DETACH);
+    err = errno;
+
+    verbose_line(v, "unmount", "old '/'", res < 0);
+    if(res < 0) {
+        D_ERROR("umount2(\".\", MNT_DETACH) failed", err);
+        goto done;
+    }
+    // End of sequence shown in MAN page.
+
+    res = chdir("/");
+    err = errno;
+
+    verbose_line(v, "chdir", "/", res < 0);
+    if(res < 0) {
+        D_ERROR("Failed to chdir() to new root", err);
+        goto done;
+    }
+    ret = true;
+done:
+    if(mnt >= 0) {
+        close(mnt);
+    }
+    if(fd >= 0 && ptr != nullptr) {
+        res = unlinkat(fd, ptr + 5, AT_REMOVEDIR);
+        err = errno;
+
+        verbose_line(v, "unlinkat", ptr, res < 0);
+        if(res < 0) {
+            D_WARN("Failed to unlink tmp directory for root", err);
+        }
+
+        close(fd);
+    } else if(ptr != nullptr) {
+        res = rmdir(ptr);
+        err = errno;
+
+        verbose_line(v, "rmdir", ptr, res < 0);
+        if(res < 0) {
+            D_WARN("Failed to rmdir tmp directory for root.", err);
+        }
+    }
+
+    return ret;
 }
 
 MountErr bind_dev(PathCtx* ctx, Verbose verbose) {

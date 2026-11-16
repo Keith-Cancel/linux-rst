@@ -212,12 +212,12 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-/*
-    if(swap_root_to_mount(mnt) < 0) {
-        fprintf(stderr, "Swapping root failed");
+
+    if(!swap_root_to_mount(mnt, v)) {
         return 1;
     }
 
+/**
     if(drop_privileges() < 0) {
         fprintf(stderr, "Dropping privileges failed");
         return 1;
