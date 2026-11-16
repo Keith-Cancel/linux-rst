@@ -41,6 +41,6 @@ const uint8_t *con_file_next_line(ConFile* cf);
 
 ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out);
 
-void con_file_print_new_error(ConFileErr err);
+void con_file_print_new_error(ConFileErr err, const char* path);
 
 #endif

@@ -108,6 +108,34 @@ void con_file_free(ConFile* file) {
     free(file);
 }
 
+void con_file_print_new_error(ConFileErr err, const char* path) {
+    const char* msg = "UNKNOWN";
+    switch(err) {
+        case CF_NOT_FOUND:
+            msg = "Config file not found";
+            break;
+        case CF_NON_FILE:
+            msg = "Config file is not a regular file";
+            break;
+        case CF_TOO_LONG:
+            msg = "Config file path is too long";
+            break;
+        case CF_NO_PERM:
+            msg = "Permission denied for config file";
+            break;
+        case CF_UNWALKABLE:
+            msg = "A path component of the config file is not walkable";
+            break;
+        case CF_SYS_ERROR:
+            msg = "A system error occurred";
+            break;
+        default:
+            D_ERROR("Unknown config error");
+            break;
+    }
+    fprintf(stderr, "Error: %s: '%s'\n", msg, path);
+}
+
 static ConFileErr cf_map_errno(int errnum) {
     switch(errnum) {
         case ENOENT:

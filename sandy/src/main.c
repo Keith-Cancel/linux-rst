@@ -289,11 +289,16 @@ int main(int argc, char **argv) {
     }
 
     if(conf.conf_file != nullptr) {
+        ConFile* cf  = nullptr;
         verbose_header(v, "Loading Config File");
-        ConFile* cf = con_file_new(conf.conf_file, v);
-        if(cf == nullptr) {
+
+        ConFileErr e = con_file_new(&cf, conf.conf_file);
+        verbose_line("open", conf.conf_file, e != CF_SUCCESS);
+        if(e != CF_SUCCESS) {
+            con_file_print_new_error(e, conf.conf_file);
             return 1;
         }
+
         con_file_free(cf);
     }
 
