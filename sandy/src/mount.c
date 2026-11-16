@@ -155,7 +155,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
         D_WARN("A system error occurred for mount_setattr() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -165,7 +165,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -198,6 +198,31 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
     if(!fd_is_dir(host)) {
         close(host);
         return M_HST_PATH_NOT_DIR;
+    }
+
+    struct mount_attr attr = {
+        .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV,
+    };
+    if(read_only) {
+        attr.attr_set |= MOUNT_ATTR_RDONLY;
+    }
+    
+    int res = mount_setattr(host, "", AT_EMPTY_PATH | AT_RECURSIVE, &attr, sizeof(struct mount_attr));
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for mount_setattr() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
+    }
+
+    res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for move_mount() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
     }
 
     return M_SUCCESS;
