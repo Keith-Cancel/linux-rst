@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include "conf.h"
 #include "diag.h"
 #include "mount.h"
 #include "priv.h"
