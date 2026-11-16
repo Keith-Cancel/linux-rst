@@ -10,7 +10,10 @@
 #include "conf.h"
 #include "diag.h"
 
-static void print_err(const char* path, int errnum);
+
+static uint8_t*   next_line_priv(ConFile *cf);
+static void       print_err(const char* path, int errnum);
+static ConFileErr parse_command(uint8_t* line);
 
 struct con_file_s {
     uint8_t* data;
@@ -101,32 +104,11 @@ ConFile* con_file_new(const char* path, Verbose verbose) {
 
 // Returns NULL when there are no more lines.
 const uint8_t *con_file_next_line(ConFile *cf) {
-    uint8_t* dat = cf->data;
-    size_t   cur = cf->cursor;
-    size_t   sz  = cf->size;
+    return next_line_priv(cf);
+}
 
-    if(cur >= sz) {
-        return nullptr;
-    }
-
-    size_t rem  = sz - cur;
-    uint8_t* ln = dat + cur;
-    uint8_t* nl = memchr(ln, '\n', rem);
-    
-    if(nl != nullptr) {
-        *nl = '\0';
-        // Check for carriage return.
-        if(nl > ln && *(nl - 1) == '\r') {
-            *(nl - 1) = '\0'; // Also null out.
-        }
-        cf->cursor = (nl - dat) + 1;
-    } else {
-        // I over allocate in new by 1 and set to '\0'
-        // so don't need to anything here but update
-        // the curose.
-        cf->cursor = sz;
-    }
-    return ln;
+ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
+    return CF_SUCCESS;
 }
 
 void con_file_free(ConFile* file) {
@@ -159,4 +141,33 @@ static void print_err(const char* path, int errnum) {
             D_ERROR("A system failure occurred when opening the config file", errnum);
             break;
     }
+}
+
+static uint8_t* next_line_priv(ConFile *cf) {
+    uint8_t* dat = cf->data;
+    size_t   cur = cf->cursor;
+    size_t   sz  = cf->size;
+
+    if(cur >= sz) {
+        return nullptr;
+    }
+
+    size_t rem  = sz - cur;
+    uint8_t* ln = dat + cur;
+    uint8_t* nl = memchr(ln, '\n', rem);
+    
+    if(nl != nullptr) {
+        *nl = '\0';
+        // Check for carriage return.
+        if(nl > ln && *(nl - 1) == '\r') {
+            *(nl - 1) = '\0'; // Also null out.
+        }
+        cf->cursor = (nl - dat) + 1;
+    } else {
+        // I over allocate in new by 1 and set to '\0'
+        // so don't need to anything here but update
+        // the curose.
+        cf->cursor = sz;
+    }
+    return ln;
 }
