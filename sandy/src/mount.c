@@ -25,6 +25,7 @@ static MountErr mkdir_env            (int mnt, const uint8_t* path, mode_t mode,
 static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose verbose);
 static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
 static MountErr prep_and_check_paths (PathCtx* ctx);
+static MountErr prep_env_path        (const uint8_t* path, uint8_t buff[], size_t blen);
 
 static int pivot_root(const char *new_root, const char *put_old) {
     return syscall(SYS_pivot_root, new_root, put_old);
@@ -275,6 +276,37 @@ done:
     }
 
     return ret;
+}
+
+MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target) {
+    uint8_t buff[PATH_MAX];
+    MountErr ret = prep_env_path(env_path, buff, PATH_MAX);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+    if(symlinkat((const char*)target, mnt, (const char*)buff) >= 0) {
+        return M_SUCCESS;
+    }
+    int errnum = errno;
+    switch(errnum) {
+        case EPERM:
+        case EACCES:
+            return M_ENV_PATH_PERM;
+        case ENAMETOOLONG:
+            return M_ENV_PATH_TOO_LONG;
+        case ENOENT:
+            return M_ENV_PATH_NOT_FOUND;
+        case ELOOP:
+        case ENOTDIR:
+            return M_ENV_PATH_UNWALKABLE;
+        case EEXIST:
+            return M_ENV_PATH_EXISTS;
+        case EROFS:
+            return M_ENV_PATH_READ_ONLY;
+        default:
+            D_WARN("A system error occurred for symlinkat() for an environment path.", errnum);
+            return M_ENV_PATH_SYS_ERR;
+    }
 }
 
 MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
