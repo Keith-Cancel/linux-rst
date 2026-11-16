@@ -13,7 +13,7 @@
 
 static uint8_t*   next_line_priv(ConFile *cf);
 static ConFileErr cf_map_errno(int errnum);
-static ConFileErr parse_command(uint8_t* line);
+static uint8_t*   parse_quote_str(uint8_t* str);
 
 struct con_file_s {
     uint8_t* data;
@@ -95,6 +95,42 @@ const uint8_t *con_file_next_line(ConFile *cf) {
 }
 
 ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
+    cmd_out->kind = CF_K_NONE;
+    cmd_out->src  = "";
+    cmd_out->dst  = "";
+    uint8_t* ln = next_line_priv(cf);
+    if(ln == nullptr) {
+        return CF_CMD_DONE;
+    }
+    if(ln[0] == '\0') {
+        return CF_CMD_EMPTY;
+    }
+
+    uint8_t* kind = ln;
+    uint8_t* src  = nullptr;
+    uint8_t  dst  = nullptr;
+
+    uint8_t* pos  = ln;
+    // Find the first space or end of str
+    while(*pos != '\0' && *pos != ' ') {
+        pos += 1;
+    }
+    // A space must exist after <kind>.
+    if (*pos != ' ') {
+        return CF_CMD_KIND_FMT;
+    }
+    // Overwrite the space with '\0' to make a new string.
+    *pos = '\0';
+    pos += 1;
+
+    /*
+    if(*pos != '"') {
+        return CF_CMD_SRC_UNOPENED;
+    }
+    // src statrs after open `"`
+    pos += 1;
+    src = pos;*/
+
     return CF_SUCCESS;
 }
 
@@ -181,4 +217,14 @@ static uint8_t* next_line_priv(ConFile *cf) {
         cf->cursor = sz;
     }
     return ln;
+}
+
+static uint8_t* parse_quote_str(uint8_t* str) {
+    if(*str != '"') {
+        //return /* UNOPENED */;
+    }
+    uint8_t* p = str + 1;
+
+
+
 }

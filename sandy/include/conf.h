@@ -7,7 +7,8 @@
 typedef struct con_file_s ConFile;
 
 typedef enum : uint32_t {
-    CF_K_LINK = 0,
+    CF_K_NONE = 0,
+    CF_K_LINK,
 } ConFileKind;
 
 typedef enum : uint32_t {
@@ -20,9 +21,14 @@ typedef enum : uint32_t {
     CF_NO_MEM,      // Could not allocate memory for the file
     CF_UNEXPEC_EOF, // While reading the file an EOF happened early.
 
-    CF_CMD_DONE,    // No more lines to process
-    CF_CMD_EMPTY,   // Line was empty.
-    CF_CMD_UNK_KIND,// Unrecognized command kind.
+    CF_CMD_DONE,             // No more lines to process
+    CF_CMD_EMPTY,            // The file line was empty.
+    CF_CMD_KIND_FMT,         // The line's <kind> was formatted incorrectly.
+    CF_CMD_KIND_UNKNOWN,     // The line's command <kind> is unrecognized.
+    CF_CMD_DST_UNOPENED      // The line's <dst> is missing an opening `"`
+    CF_CMD_DST_UNTERMINATED  // The line's <dst> is missing a closing `"`  
+    CF_CMD_SRC_UNOPENED      // The line's <src> is missing an opening `"`
+    CF_CMD_SRC_UNTERMINATED  // The line's <src> is missing a closing `"`  
 
     CF_SYS_ERROR,   // A system error of some kind occurred.
 } ConFileErr;
