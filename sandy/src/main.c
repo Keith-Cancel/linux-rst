@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
+#include <fcntl.h>
 
 #include "diag.h"
 #include "mount.h"
@@ -23,7 +24,9 @@ static void usage(const char *prog) {
         "  --bindd      HOST TARGET  Bind HOST directory as read only at TARGET\n"
         "  --bindd-rw   HOST TARGET  Bind HOST directory as read & write at TARGET\n"
         "  --exec-host               COMMAND is started from host path\n"
-        "  --bind-cmd                Bind COMMAND in the environment as written\n" 
+        "  --bind-cmd                Bind COMMAND in the environment as written.\n"
+        "                            If the path is relative the environment root is\n"
+        "                            used as the CWD on where to bind in the environment.\n"
         "  --verbose                 Print extra information as environment is setup\n"
         "  --color                   Use ANSI control sequences on stdio/stderr\n"
         "  --help                    Show this help\n",
@@ -59,6 +62,11 @@ bool process_args(int argc, char** argv, Config* conf) {
     const char* cmd = "sandy";
     if(argc >= 1) {
         cmd = argv[0];
+    }
+    // Not enough args.
+    if(argc < 2) {
+        usage(cmd);
+        return false;
     }
 
     // Find `--` index
@@ -143,8 +151,19 @@ bool process_args(int argc, char** argv, Config* conf) {
         usage(cmd);
         return false;
     }
+    // No flags/args cases
+    if(sep < 0) {
+        conf->bind_cmd = true;
+        conf->cmd_idx = 1;
+        return true;
 
-
+    }
+    // Make sure there is at least on arge after the --
+    if((sep + 1) >= argc) {
+        usage(cmd);
+        return false;
+    }
+    conf->cmd_idx = sep + 1;
     return true;
 }
 
@@ -156,6 +175,7 @@ int main(int argc, char **argv) {
         .dirs_cap  = MAX_BIND,
         .files     = bindf,
         .files_cap = MAX_BIND,
+        .cmd_idx   = -1,
     };
     if(!process_args(argc, argv, &conf)) {
         return 1;
@@ -213,13 +233,26 @@ int main(int argc, char **argv) {
         }
     }
 
+    if(conf.bind_cmd) {
+        verbose_header(v, "Binding Command");
+        char* cmd = argv[conf.cmd_idx];
+        ctx.host_path = (const uint8_t*)cmd;
+        ctx.env_path  = (const uint8_t*)cmd;
+        MountErr e = bind_file(&ctx, v, false);
+        verbose_mount_line(&ctx, v, e);
+        if(e != M_SUCCESS) {
+            close(mnt);
+            print_mount_error(&ctx, e);
+            return 1;
+        }
+    }
+
     if(!swap_root_to_mount(mnt, v)) {
         return 1;
     }
 
-/**
     if(drop_privileges() < 0) {
-        fprintf(stderr, "Dropping privileges failed");
+        D_ERROR("Dropping privileges failed");
         return 1;
     }
 
