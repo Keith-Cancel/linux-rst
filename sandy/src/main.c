@@ -198,17 +198,21 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-/*
-    // User file binds
-    for (int i = 0; i < bindfs; i++) {
-        int rc = bind_file(mnt, bindf[i].host, bindf[i].target, bindf[i].read_only);
-        if (rc < 0) {
-            fprintf(stderr, "Failed to bind file '%s' -> '%s'\n", bindf[i].host, bindf[i].target);
+
+    verbose_header(v, "Mounting User Files");
+    for (size_t i = 0; i < conf.files_cnt; i++) {
+        ctx.host_path = (const uint8_t*)conf.files[i].host;
+        ctx.env_path  = (const uint8_t*)conf.files[i].target;
+
+        MountErr e = bind_file(&ctx, v, conf.files[i].read_only);
+        verbose_mount_line(&ctx, v, e);
+        if(e != M_SUCCESS) {
             close(mnt);
+            print_mount_error(&ctx, e);
             return 1;
         }
     }
-
+/*
     if(swap_root_to_mount(mnt) < 0) {
         fprintf(stderr, "Swapping root failed");
         return 1;
