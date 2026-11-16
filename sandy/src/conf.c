@@ -12,8 +12,13 @@
 
 
 static uint8_t*   next_line_priv(ConFile *cf);
+static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 static ConFileErr cf_map_errno(int errnum);
-static uint8_t*   parse_quote_str(uint8_t* str);
+
+#define Q_UNOPENED 0     // missing opening `"`
+#define Q_UNCLOSED 1     // missing a closing `"`
+#define Q_BAD_ESC  2     // bad escape sequence
+#define Q_SUCCESS  0xff
 
 struct con_file_s {
     uint8_t* data;
@@ -96,8 +101,8 @@ const uint8_t *con_file_next_line(ConFile *cf) {
 
 ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     cmd_out->kind = CF_K_NONE;
-    cmd_out->src  = "";
-    cmd_out->dst  = "";
+    cmd_out->src  = (uint8_t*)"";
+    cmd_out->dst  = (uint8_t*)"";
     uint8_t* ln = next_line_priv(cf);
     if(ln == nullptr) {
         return CF_CMD_DONE;
@@ -107,21 +112,40 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
 
     uint8_t* kind = ln;
-    uint8_t* src  = nullptr;
     uint8_t* dst  = nullptr;
+    uint8_t* src  = nullptr;
 
     uint8_t* pos  = ln;
     // Find the first space or end of str
     while(*pos != '\0' && *pos != ' ') {
         pos += 1;
     }
-    // A space must exist after <kind>.
+    // A space must exist before <dst>.
     if (*pos != ' ') {
-        return CF_CMD_KIND_FMT;
+        return CF_CMD_DST_NO_SPC;
     }
-    // Overwrite the space with '\0' to make a new string.
+    // Overwrite the space with '\0' to make a new string for <kind>
     *pos = '\0';
     pos += 1;
+
+    dst = pos;
+    uint8_t ret = parse_quote_str(pos, &pos);
+    if(ret != Q_SUCCESS) {
+        return CF_E_CMD_S(2, ret);
+    }
+
+    // A space must exist before <src>
+    if(*pos != ' ') {
+        return CF_CMD_SRC_NO_SPC;
+    }
+    pos += 1;
+
+    src = pos;
+    ret = parse_quote_str(pos, &pos);
+    if(ret != Q_SUCCESS) {
+        return CF_E_CMD_S(3, ret);
+    }
+
 
     /*
     if(*pos != '"') {
@@ -219,27 +243,47 @@ static uint8_t* next_line_priv(ConFile *cf) {
     return ln;
 }
 
-static uint8_t* parse_quote_str(uint8_t* str) {
+static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
     if(*str != '"') {
-        //return /* UNOPENED */;
+        return Q_UNOPENED;
     }
 
-    uint8_t* start = str + 1;
-
-    uint8_t* w = start; // write
-    uint8_t* r = start; // read
+    uint8_t* w = str;     // write
+    uint8_t* r = str + 1; // read, add one to skip the opening `"`
     
     for(;;) {
         uint8_t c = *r;
         if(c == '\0') {
-            //return /* UNTERMINATED */;
+            return Q_UNCLOSED;
         }
         // Closed/terminated
         if(c == '"') {
-
+            *w = '\0';
+            *after = r + 1;
+            return Q_SUCCESS;
         }
+        // Escape sequence
+        if(c == '\\') {
+            r += 1;
+            switch(*r) {
+                case '"':
+                    c = '"';
+                    break;
+                case '\\':
+                    c = '\\';
+                    break;
+                case 'n':
+                    c = '\n';
+                    break;
+                case '\0':
+                    return Q_UNCLOSED;
+                default:
+                    return Q_BAD_ESC;
+            }
+        }
+
+        *w = c;
+        r += 1;
+        w += 1;
     }
-
-
-
 }
