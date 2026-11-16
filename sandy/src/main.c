@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
         verbose_header(v, "Loading Config File");
 
         ConFileErr e = con_file_new(&cf, conf.conf_file);
-        verbose_line("open", conf.conf_file, e != CF_SUCCESS);
+        verbose_line(v, "open", conf.conf_file, e != CF_SUCCESS);
         if(e != CF_SUCCESS) {
             con_file_print_new_error(e, conf.conf_file);
             return 1;
