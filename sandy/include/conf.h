@@ -15,6 +15,8 @@ typedef enum : uint32_t {
 #define CF_E_CMD(v)  (0x200 | (uint8_t)(v))
 #define CF_E_SYS(v)  (0xf00 | (uint8_t)(v))
 
+#define CF_E_CMD_S(g, v) CF_E_CMD(((g) << 4) | ((v) & 0xf))
+
 // The second byte determines the kinda of error
 typedef enum : uint32_t {
     CF_SUCCESS = CF_E_GEN(0),
@@ -28,20 +30,22 @@ typedef enum : uint32_t {
     CF_UNEXPEC_EOF = CF_E_FILE(6), // While reading the file an EOF happened early.
 
     // For cmd errors
-    // the high nibble is the kind
-    // the low  nibble is the error for that kind.
-    CF_CMD_DONE         = CF_E_CMD(0x00), // No more lines to process
-    CF_CMD_EMPTY        = CF_E_CMD(0x01), // The command's line was empty.
+    // the high nibble is the group
+    // the low  nibble is the error for that group.
+    CF_CMD_DONE         = CF_E_CMD_S(0, 0), // No more lines to process
+    CF_CMD_EMPTY        = CF_E_CMD_S(0, 1), // The command's line was empty.
 
-    CF_CMD_KIND_FMT     = CF_E_CMD(0x10), // The line's <kind> was formatted incorrectly.
-    CF_CMD_KIND_UNKNOWN = CF_E_CMD(0x11), // The line's command <kind> is unrecognized.
+    CF_CMD_KIND_FMT     = CF_E_CMD_S(1, 0), // The line's <kind> was formatted incorrectly.
+    CF_CMD_KIND_UNKNOWN = CF_E_CMD_S(1, 1), // The line's command <kind> is unrecognized.
 
     // DST and SRC will be the exact same except the high nibble.
-    CF_CMD_DST_UNOPENED = CF_E_CMD(0x20), // The line's <dst> is missing an opening `"`
-    CF_CMD_DST_UNCLOSED = CF_E_CMD(0x21), // The line's <dst> is missing a closing `"`
-
-    CF_CMD_SRC_UNOPENED = CF_E_CMD(0x30), // The line's <src> is missing an opening `"`
-    CF_CMD_SRC_UNCLOSED = CF_E_CMD(0x31), // The line's <src> is missing a closing `"`
+    CF_CMD_DST_UNOPENED = CF_E_CMD_S(2, 0), // The line's <dst> is missing an opening `"`
+    CF_CMD_DST_UNCLOSED = CF_E_CMD_S(2, 1), // The line's <dst> is missing a closing `"`
+    CF_CMD_DST_BAD_ESC  = CF_E_CMD_S(2, 2), // The line's <src> has a bad or unrecognized escape.
+    
+    CF_CMD_SRC_UNOPENED = CF_E_CMD_S(3, 0), // The line's <src> is missing an opening `"`
+    CF_CMD_SRC_UNCLOSED = CF_E_CMD_S(3, 1), // The line's <src> is missing a closing `"`
+    CF_CMD_SRC_BAD_ESC  = CF_E_CMD_S(3, 2), // The line's <src> has a bad or unrecognized escape.
 
     CF_SYS_ERROR = CF_E_SYS(0), // A system error of some kind occurred.
 } ConFileErr;
