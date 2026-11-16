@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -96,6 +97,36 @@ ConFile* con_file_new(const char* path, Verbose verbose) {
         return nullptr;
     }
     return cf;
+}
+
+// Returns NULL when there are no more lines.
+const uint8_t *con_file_next_line(ConFile *cf) {
+    uint8_t* dat = cf->data;
+    size_t   cur = cf->cursor;
+    size_t   sz  = cf->size;
+
+    if(cur >= sz) {
+        return nullptr;
+    }
+
+    size_t rem  = sz - cur;
+    uint8_t* ln = dat + cur;
+    uint8_t* nl = memchr(ln, '\n', rem);
+    
+    if(nl != nullptr) {
+        *nl = '\0';
+        // Check for carriage return.
+        if(nl > ln && *(nl - 1) == '\r') {
+            *(nl - 1) = '\0'; // Also null out.
+        }
+        cf->cursor = (nl - dat) + 1;
+    } else {
+        // I over allocate in new by 1 and set to '\0'
+        // so don't need to anything here but update
+        // the curose.
+        cf->cursor = sz;
+    }
+    return ln;
 }
 
 void con_file_free(ConFile* file) {
