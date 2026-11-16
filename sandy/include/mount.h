@@ -42,12 +42,13 @@ int  setup_mount(Verbose verbose);
 bool setup_devices(int mnt, Verbose verbose);
 
 MountErr bind_dev(PathCtx* ctx, Verbose verbose);
+MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only);
 
 // Swap the root directory to the mount and close the mount file descriptor.
 int swap_root_to_mount(int mnt);
-int bind_dir(int mnt, const char *host_src, const char *target, bool read_only);
 int bind_file(int mnt, const char* host_file, const char* target, bool read_only);
 
 void print_mount_error(PathCtx* ctx, MountErr error);
+void verbose_mount_line(PathCtx* ctx, Verbose verbose, MountErr err);
 
 #endif

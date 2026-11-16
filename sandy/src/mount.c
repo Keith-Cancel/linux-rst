@@ -101,7 +101,7 @@ bool setup_devices(int mnt, Verbose v) {
         ctx.host_path = (const uint8_t*)dev;
 
         MountErr e = bind_dev(&ctx, v);
-        verbose_line(v, "mount", dev, e != M_SUCCESS);
+        verbose_mount_line(&ctx, v, e);
         if(e != M_SUCCESS) {
             print_mount_error(&ctx, e);
             return false;
@@ -112,7 +112,7 @@ bool setup_devices(int mnt, Verbose v) {
     ctx.host_path = (const uint8_t*)"/dev/tty";
 
     MountErr e = bind_dev(&ctx, v);
-    verbose_line(v, "mount", "/dev/tty", e != M_SUCCESS);
+    verbose_mount_line(&ctx, v, e);
     if(verbose_enabled(v) && e != M_SUCCESS) {
         print_mount_error(&ctx, e);
     }
@@ -167,6 +167,20 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
         verbose_line(verbose, "mount", (const char*)ctx->host_path, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
+    }
+
+    return M_SUCCESS;
+}
+
+MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
+    MountErr ret = prep_and_check_paths(ctx);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    ret = mkdir_env_parent(ctx->mount_fd, ctx->buff, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
     }
 
     return M_SUCCESS;
@@ -245,6 +259,17 @@ void print_mount_error(PathCtx* ctx, MountErr error) {
     
     size_t len = strlen(out);
     fwrite(out, 1, len, stderr);
+}
+
+void verbose_mount_line(PathCtx* ctx, Verbose verbose, MountErr err) {
+    if(!verbose_enabled(verbose)) {
+        return;
+    }
+    char buff[PATH_MAX + 1];
+    snprintf(buff, PATH_MAX, "host: %s", ctx->host_path);
+    verbose_line(verbose, "mount", buff, err != M_SUCCESS);
+    snprintf(buff, PATH_MAX, "env:  %s", ctx->env_path);
+    verbose_line(verbose, "", buff, V_NONE);
 }
 
 static bool write_str(const char *path, const char *str) {
