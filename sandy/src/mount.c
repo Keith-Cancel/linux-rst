@@ -16,6 +16,7 @@
 
 static bool fd_is_dev      (int fd);
 static bool fd_is_dir      (int fd);
+static bool fd_is_file     (int fd);
 static bool enter_namespace(void);
 
 static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
@@ -208,6 +209,61 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
     }
     
     int res = mount_setattr(host, "", AT_EMPTY_PATH | AT_RECURSIVE, &attr, sizeof(struct mount_attr));
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for mount_setattr() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
+    }
+
+    res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    if(res < 0) {
+        int err = errno;
+        close(host);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
+        D_WARN("A system error occurred for move_mount() for a host path.", err);
+        return M_HST_PATH_SYS_ERR;
+    }
+
+    return M_SUCCESS;
+}
+
+MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
+    MountErr ret = prep_and_check_paths(ctx);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    ret = mkdir_env_parent(ctx->mount_fd, ctx->buff, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    int host = -1;
+    ret = open_host_tree(ctx, OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC, &host);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    if(!fd_is_file(host)) {
+        close(host);
+        return M_HST_PATH_NOT_DIR;
+    }
+
+    struct mount_attr attr = {
+        .attr_set = MOUNT_ATTR_NOSUID | MOUNT_ATTR_NODEV,
+    };
+    if(read_only) {
+        attr.attr_set |= MOUNT_ATTR_RDONLY;
+    }
+    
+    int res = mount_setattr(host, "", AT_EMPTY_PATH, &attr, sizeof(struct mount_attr));
     if(res < 0) {
         int err = errno;
         close(host);
@@ -481,6 +537,14 @@ static bool fd_is_dir(int fd) {
         return false;
     }
     return S_ISDIR(path_stat.st_mode) != 0;
+}
+
+static bool fd_is_file(int fd) {
+    struct stat path_stat = { 0 };
+    if (fstat(fd, &path_stat) != 0) {
+        return false;
+    }
+    return S_ISREG(path_stat.st_mode) != 0;
 }
 
 static bool is_dirat(int dirfd, const uint8_t *path) {
