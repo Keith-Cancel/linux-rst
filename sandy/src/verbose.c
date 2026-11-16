@@ -90,7 +90,6 @@ void verbose_line(Verbose v, const char* title, const char* value, VStatus stat)
     // ANSI Control 7 (Color + Bold) + 4 (Reset) = 11
     // 41 + 11 = 52 for status and title.
     uint8_t buff[BUFF_SZ];
-    memset(buff, ' ', TS_MAX > 64 ? TS_MAX : 64);
 
     // Begin a pointer walk.
     uint8_t* pos = buff;
@@ -104,20 +103,24 @@ void verbose_line(Verbose v, const char* title, const char* value, VStatus stat)
             pos += 18;
         }
     } else {
+        memset(pos, ' ', 7);
         pos += 7;
     }
 
-    size_t i = 0;
-    for(; i < twid; i++) {
-        char c = title[i];
-        if(c == '\0') {
-            break;
+    memset(pos, ' ', twid + 2);
+    if(title[0] != '\0') {
+        uint8_t *tmp = pos;
+        for(size_t i = 0; i < twid; i++) {
+            char c = title[i];
+            if(c == '\0') {
+                break;
+            }
+            *tmp = c;
+            tmp += 1;
         }
-        *pos = c;
-        pos += 1;
-    }
-    *pos = ':';
-    pos += (twid + 2) - i;
+        *tmp = ':';
+    } 
+    pos += twid + 2;
 
     // Add 1 so there is room for new line.
     size_t free = BUFF_SZ - ((pos + 1) - buff);
