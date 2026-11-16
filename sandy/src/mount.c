@@ -414,72 +414,72 @@ void print_mount_error(PathCtx* ctx, MountErr error) {
     const char* out = buff;
     switch(error) {
         case M_SUCCESS:
-            out = "SUCCESS - No Mounting error occurred\n";
+            out = "Success: No Mounting error occurred\n";
             break;
         // Environment Path errors
         case M_ENV_PATH_NULL:
-            snprintf(buff, 512, "Environment mount path is null for: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Environment mount path is null for: '%s'\n", hst);
             break;
         case M_ENV_PATH_EMPTY:
-            snprintf(buff, 512, "Environment mount path is empty for: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Environment mount path is empty for: '%s'\n", hst);
             break;
         case M_ENV_PATH_TOO_LONG:
-            fprintf(stderr, "Environment path too long: '%s'\n", env);
+            fprintf(stderr, "Error: Environment path too long: '%s'\n", env);
             return;
         case M_ENV_PATH_NOT_FOUND:
-            snprintf(buff, 512, "Environment path not found: '%s'\n", env);
+            snprintf(buff, 512, "Error: Environment path not found: '%s'\n", env);
             break;
         case M_ENV_PATH_UNWALKABLE:
-            snprintf(buff, 512, "A component of the environment path is not walkable: '%s'\n", env);
+            snprintf(buff, 512, "Error: A component of the environment path is not walkable: '%s'\n", env);
             break;
         case M_ENV_PATH_EXISTS:
-            snprintf(buff, 512, "Environment path already exists: '%s'\n", env);
+            snprintf(buff, 512, "Error: Environment path already exists: '%s'\n", env);
             break;
         case M_ENV_PATH_NOT_DIR:
-            snprintf(buff, 512, "A component of the environment path is not a directory: '%s'\n", env);
+            snprintf(buff, 512, "Error: A component of the environment path is not a directory: '%s'\n", env);
             break;
         case M_ENV_PATH_PERM:
-            snprintf(buff, 512, "Permission denied to create environment path: '%s'\n", env);
+            snprintf(buff, 512, "Error: Permission denied to create environment path: '%s'\n", env);
             break;
         case M_ENV_PATH_READ_ONLY:
-            snprintf(buff, 512, "Environment path is on a read only file system: '%s'\n", env);
+            snprintf(buff, 512, "Error: Environment path is on a read only file system: '%s'\n", env);
             break;
         case M_ENV_PATH_SYS_ERR:
-            snprintf(buff, 512, "Environment path encountered a system error: '%s'\n", env);
+            snprintf(buff, 512, "Error: Environment path encountered a system error: '%s'\n", env);
             break;
         // Host path errors
         case M_HST_PATH_NULL:
-            snprintf(buff, 512, "Host mount path is null for: '%s'\n", env);
+            snprintf(buff, 512, "Error: Host mount path is null for: '%s'\n", env);
             break;
         case M_HST_PATH_EMPTY:
-            snprintf(buff, 512, "Host mount path is empty for: '%s'\n", env);
+            snprintf(buff, 512, "Error: Host mount path is empty for: '%s'\n", env);
             break;
         case M_HST_PATH_TOO_LONG:
-            fprintf(stderr, "Host path too long: '%s'\n", hst);
+            fprintf(stderr, "Error: Host path too long: '%s'\n", hst);
             return;
         case M_HST_PATH_NOT_FOUND:
-            snprintf(buff, 512, "Host path not found: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Host path not found: '%s'\n", hst);
             break;
         case M_HST_PATH_UNWALKABLE:
-            snprintf(buff, 512, "A component of the host path is not walkable: '%s'\n", hst);
+            snprintf(buff, 512, "Error: A component of the host path is not walkable: '%s'\n", hst);
             break;
         case M_HST_PATH_NOT_DEV:
-            snprintf(buff, 512, "Host path is not a device: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Host path is not a device: '%s'\n", hst);
             break;
         case M_HST_PATH_NOT_DIR:
-            snprintf(buff, 512, "Host path is not a directory: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Host path is not a directory: '%s'\n", hst);
             break;
         case M_HST_PATH_NOT_FILE:
-            snprintf(buff, 512, "Host path is not a file: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Host path is not a file: '%s'\n", hst);
             break;
         case M_HST_PATH_PERM:
-            snprintf(buff, 512, "Permission denied to host path: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Permission denied to host path: '%s'\n", hst);
             break;
         case M_HST_PATH_SYS_ERR:
-            snprintf(buff, 512, "Host path encountered a system error: '%s'\n", hst);
+            snprintf(buff, 512, "Error: Host path encountered a system error: '%s'\n", hst);
             break;
         default:
-            snprintf(buff, 512, "Unknown mount error: %" PRIu32 "\n", error);
+            snprintf(buff, 512, "Error: Unknown mount error: %" PRIu32 "\n", error);
             break;
     }
     
