@@ -135,21 +135,33 @@ bool setup_libs(int mnt, Verbose v) {
         .buff      = buff,
         .buff_cap  = PATH_MAX + 1
     };
-
     v = verbose_set_title_width(v, 10);
-    verbose_header(v, "Configuring: /lib");
+    verbose_header(v, "Configuring: libs");
 
-    const char *const libs[4] = {
-        "/lib/ld-linux.so.2",
-        "/lib/ld-linux-x86-64.so.2",
-        "/lib64/ld-linux.so.2",
-        "/lib64/ld-linux-x86-64.so.2",
+    const char* links[][2] = {
+        { "/lib",                   "/usr/lib" },
+        { "/lib64",                 "/usr/lib" },
+        { "/usr/lib/ld-linux.so.2", "/usr/lib32/ld-linux.so.2" },
+        { nullptr,  nullptr    }
     };
-    for(unsigned i = 0; i < 4; i++) {
-        const char* lib = libs[i];
 
-        ctx.env_path  = (const uint8_t*)lib;
-        ctx.host_path = (const uint8_t*)lib;
+    const char* const libs[] = {
+        "/usr/lib/ld-linux-x86-64.so.2",
+        "/usr/lib/libc.so",
+        "/usr/lib/libc.so.6",
+
+        "/usr/lib32/ld-linux.so.2",
+        "/usr/lib32/libc.so",
+        "/usr/lib32/libc.so.6",
+        nullptr,
+    };
+
+    const char* const *lib = libs;
+    while(*lib != nullptr) {
+        const char* cur = *lib;
+
+        ctx.env_path  = (const uint8_t*)cur;
+        ctx.host_path = (const uint8_t*)cur;
 
         MountErr e = bind_file(&ctx, v, true);
         verbose_mount_line(&ctx, v, e);
@@ -157,6 +169,22 @@ bool setup_libs(int mnt, Verbose v) {
             print_mount_error(&ctx, e);
             return false;
         }
+        lib += 1;
+    }
+
+    const char *(*lnk)[2] = links;
+    while((*lnk)[0] != nullptr) {
+        const uint8_t* dest   = (const uint8_t*)((*lnk)[0]);
+        const uint8_t* target = (const uint8_t*)((*lnk)[1]);
+
+        MountErr e = make_symlink(mnt, dest, target, v);
+        if(e != M_SUCCESS) {
+            ctx.host_path = (const uint8_t*)"";
+            ctx.env_path  = dest;
+            print_mount_error(&ctx, e);
+            return false;
+        }
+        lnk += 1;
     }
     return true;
 }
@@ -293,7 +321,7 @@ MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, V
     int chk = symlinkat((const char*)target, mnt, (const char*)buff);
     int err = errno;
 
-    verbose_line(verbose, "symlink", env_path, chk < 0);
+    verbose_line(verbose, "symlink", (const char*)env_path, chk < 0);
     if(chk >= 0) {
         return M_SUCCESS;
     }
