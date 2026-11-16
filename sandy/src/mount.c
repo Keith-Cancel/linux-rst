@@ -278,17 +278,27 @@ done:
     return ret;
 }
 
-MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target) {
+MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, Verbose verbose) {
     uint8_t buff[PATH_MAX];
     MountErr ret = prep_env_path(env_path, buff, PATH_MAX);
     if(ret != M_SUCCESS) {
         return ret;
     }
-    if(symlinkat((const char*)target, mnt, (const char*)buff) >= 0) {
+
+    ret = mkdir_env_parent(mnt, buff, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    int chk = symlinkat((const char*)target, mnt, (const char*)buff);
+    int err = errno;
+
+    verbose_line(verbose, "symlink", env_path, chk < 0);
+    if(chk >= 0) {
         return M_SUCCESS;
     }
-    int errnum = errno;
-    switch(errnum) {
+
+    switch(err) {
         case EPERM:
         case EACCES:
             return M_ENV_PATH_PERM;
@@ -304,7 +314,7 @@ MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target) {
         case EROFS:
             return M_ENV_PATH_READ_ONLY;
         default:
-            D_WARN("A system error occurred for symlinkat() for an environment path.", errnum);
+            D_WARN("A system error occurred for symlinkat() for an environment path.", err);
             return M_ENV_PATH_SYS_ERR;
     }
 }
