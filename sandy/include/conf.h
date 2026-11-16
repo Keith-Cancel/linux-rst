@@ -34,18 +34,18 @@ typedef enum : uint32_t {
     // the low  nibble is the error for that group.
     CF_CMD_DONE         = CF_E_CMD_S(0, 0), // No more lines to process
     CF_CMD_EMPTY        = CF_E_CMD_S(0, 1), // The command's line was empty.
-
-    CF_CMD_KIND_FMT     = CF_E_CMD_S(1, 0), // The line's <kind> was formatted incorrectly.
-    CF_CMD_KIND_UNKNOWN = CF_E_CMD_S(1, 1), // The line's command <kind> is unrecognized.
+    CF_CMD_KIND_UNKNOWN = CF_E_CMD_S(0, 2), // The line's command <kind> is unrecognized.
 
     // DST and SRC will be the exact same except the high nibble.
     CF_CMD_DST_UNOPENED = CF_E_CMD_S(2, 0), // The line's <dst> is missing an opening `"`
     CF_CMD_DST_UNCLOSED = CF_E_CMD_S(2, 1), // The line's <dst> is missing a closing `"`
     CF_CMD_DST_BAD_ESC  = CF_E_CMD_S(2, 2), // The line's <src> has a bad or unrecognized escape.
+    CF_CMD_DST_NO_SPC   = CF_E_CMD_S(2, 3), // The is no space character before the <src>
     
     CF_CMD_SRC_UNOPENED = CF_E_CMD_S(3, 0), // The line's <src> is missing an opening `"`
     CF_CMD_SRC_UNCLOSED = CF_E_CMD_S(3, 1), // The line's <src> is missing a closing `"`
     CF_CMD_SRC_BAD_ESC  = CF_E_CMD_S(3, 2), // The line's <src> has a bad or unrecognized escape.
+    CF_CMD_SRC_NO_SPC   = CF_E_CMD_S(3, 3), // The is no space character before the <src>
 
     CF_SYS_ERROR = CF_E_SYS(0), // A system error of some kind occurred.
 } ConFileErr;
