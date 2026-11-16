@@ -253,7 +253,7 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
 
     if(!fd_is_file(host)) {
         close(host);
-        return M_HST_PATH_NOT_DIR;
+        return M_HST_PATH_NOT_FILE;
     }
 
     struct mount_attr attr = {
@@ -346,6 +346,9 @@ void print_mount_error(PathCtx* ctx, MountErr error) {
             break;
         case M_HST_PATH_NOT_DIR:
             snprintf(buff, 512, "Host path is not a directory: '%s'\n", hst);
+            break;
+        case M_HST_PATH_NOT_FILE:
+            snprintf(buff, 512, "Host path is not a file: '%s'\n", hst);
             break;
         case M_HST_PATH_PERM:
             snprintf(buff, 512, "Permission denied to host path: '%s'\n", hst);

@@ -35,6 +35,7 @@ typedef enum : uint32_t {
     M_HST_PATH_UNWALKABLE,
     M_HST_PATH_NOT_DEV,
     M_HST_PATH_NOT_DIR,
+    M_HST_PATH_NOT_FILE,
     M_HST_PATH_PERM,
     M_HST_PATH_SYS_ERR,
 } MountErr;
