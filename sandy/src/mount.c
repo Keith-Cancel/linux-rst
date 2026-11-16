@@ -15,13 +15,14 @@
 #include <sys/mount.h>
 
 static bool fd_is_dev      (int fd);
+static bool fd_is_dir      (int fd);
 static bool enter_namespace(void);
 
 static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
+static MountErr mkdir_env            (int mnt, const uint8_t* path, mode_t mode, Verbose v);
 static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose verbose);
 static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
 static MountErr prep_and_check_paths (PathCtx* ctx);
-
 
 int setup_mount(Verbose v) {
     v = verbose_set_title_width(v, 10);
@@ -183,6 +184,22 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
         return ret;
     }
 
+    ret = mkdir_env(ctx->mount_fd, ctx->buff, 0755, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    int host = -1;
+    ret = open_host_tree(ctx, AT_RECURSIVE | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC, &host);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    if(!fd_is_dir(host)) {
+        close(host);
+        return M_HST_PATH_NOT_DIR;
+    }
+
     return M_SUCCESS;
 }
 
@@ -245,6 +262,9 @@ void print_mount_error(PathCtx* ctx, MountErr error) {
             break;
         case M_HST_PATH_NOT_DEV:
             snprintf(buff, 512, "Host path is not a device: '%s'\n", hst);
+            break;
+        case M_HST_PATH_NOT_DIR:
+            snprintf(buff, 512, "Host path is not a directory: '%s'\n", hst);
             break;
         case M_HST_PATH_PERM:
             snprintf(buff, 512, "Permission denied to host path: '%s'\n", hst);
@@ -428,6 +448,14 @@ static bool fd_is_dev(int fd) {
         return false;
     }
     return S_ISBLK(path_stat.st_mode) | S_ISCHR(path_stat.st_mode);
+}
+
+static bool fd_is_dir(int fd) {
+    struct stat path_stat = { 0 };
+    if (fstat(fd, &path_stat) != 0) {
+        return false;
+    }
+    return S_ISDIR(path_stat.st_mode) != 0;
 }
 
 static bool is_dirat(int dirfd, const uint8_t *path) {
