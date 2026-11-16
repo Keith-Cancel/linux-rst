@@ -65,3 +65,6 @@ rustc-ice-*.txt
 # Directories
 build
 kernel
+
+# Other
+sandy/sandy
