@@ -1,8 +1,11 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "diag.h"
 #include "mount.h"
@@ -167,6 +170,36 @@ bool process_args(int argc, char** argv, Config* conf) {
     return true;
 }
 
+int open_cmd(const char* path, Verbose v) {
+    verbose_header(v, "Opening Command");
+    int cmd = open(path, O_RDONLY | O_CLOEXEC);
+    int errnum = errno;
+    verbose_line(v, "open", path, cmd < 0);
+    if(cmd >= 0) {
+        return cmd;
+    }
+    switch(errnum) {
+        case ENOENT:
+            fprintf(stderr, "Error: Command not found: '%s'\n", path);
+            break;
+        case ENAMETOOLONG:
+            fprintf(stderr, "Error: Command path name is too long: '%s'\n", path);
+            break;
+        case EACCES:
+        case EPERM:
+            fprintf(stderr, "Error: Permission denied for command: '%s'\n", path);
+            break;
+        case ELOOP:
+        case ENOTDIR:
+            fprintf(stderr, "Error: A path component of the command is not walkable: '%s'\n", path);
+            break;
+        default:
+            D_ERROR("A system failure occurred when opening command", errnum);
+            break;
+    }
+    return -1;
+}
+
 int main(int argc, char **argv) {
     BindInfo bindf[MAX_BIND] = { 0 };
     BindInfo bindd[MAX_BIND] = { 0 };
@@ -189,6 +222,11 @@ int main(int argc, char **argv) {
     int mnt = setup_mount(v);
     if(mnt < 0) {
         fwrite("Failed to create mount point\n", 1, 29, stderr);
+        return 1;
+    }
+
+    if(!setup_libs(mnt, v)) {
+        close(mnt);
         return 1;
     }
 
@@ -247,6 +285,15 @@ int main(int argc, char **argv) {
         }
     }
 
+    int cmd_fd = -1;
+    // Before swapping root get the cmd fd
+    if(conf.exec_host) {
+        cmd_fd = open_cmd(argv[conf.cmd_idx], v);
+        if(cmd_fd < 0) {
+            return 1;
+        }
+    }
+
     if(!swap_root_to_mount(mnt, v)) {
         return 1;
     }
@@ -256,6 +303,20 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Todo process args to start a process with some `exec{?}` call*/
+    if(cmd_fd < 0) {
+        cmd_fd = open_cmd(argv[conf.cmd_idx], v);
+        if(cmd_fd < 0) {
+            return 1;
+        }
+    }
+
+    // Todo load rest of args and something for env.
+    char *const env_argv[] = { NULL };
+    char *const env_envp[] = { NULL };
+
+    int res = execveat(cmd_fd, "", env_argv, env_envp, AT_EMPTY_PATH);
+    if(res < 0) {
+        perror("execveat");
+    }
     return 0;
 }

@@ -42,6 +42,7 @@ typedef enum : uint32_t {
 
 int  setup_mount(Verbose verbose);
 bool setup_devices(int mnt, Verbose verbose);
+bool setup_libs(int mnt, Verbose verbose);
 // Swap the root directory to the mount and close the mount file descriptor.
 bool swap_root_to_mount(int mnt, Verbose v);
 

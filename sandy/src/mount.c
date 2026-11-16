@@ -127,6 +127,39 @@ bool setup_devices(int mnt, Verbose v) {
     return true;
 }
 
+bool setup_libs(int mnt, Verbose v) {
+    uint8_t buff[PATH_MAX + 1];
+    PathCtx ctx = {
+        .mount_fd  = mnt,
+        .buff      = buff,
+        .buff_cap  = PATH_MAX + 1
+    };
+
+    v = verbose_set_title_width(v, 10);
+    verbose_header(v, "Configuring: /lib");
+
+    const char *const libs[4] = {
+        "/lib/ld-linux.so.2",
+        "/lib/ld-linux-x86-64.so.2",
+        "/lib64/ld-linux.so.2",
+        "/lib64/ld-linux-x86-64.so.2",
+    };
+    for(unsigned i = 0; i < 4; i++) {
+        const char* lib = libs[i];
+
+        ctx.env_path  = (const uint8_t*)lib;
+        ctx.host_path = (const uint8_t*)lib;
+
+        MountErr e = bind_file(&ctx, v, true);
+        verbose_mount_line(&ctx, v, e);
+        if(e != M_SUCCESS) {
+            print_mount_error(&ctx, e);
+            return false;
+        }
+    }
+    return true;
+}
+
 bool swap_root_to_mount(int mnt, Verbose v) {
     verbose_header(v, "Swapping Process root ('/')");
     if(mnt < 0) {
