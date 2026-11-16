@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <limits.h>
 
 #include "diag.h"
 #include "mount.h"
@@ -170,104 +171,34 @@ int main(int argc, char **argv) {
         fwrite("Failed to create mount point\n", 1, 29, stderr);
         return 1;
     }
-    
+
     if(!setup_devices(mnt, v)) {
         close(mnt);
         return 1;
     }
 
-/*
-    bool args   = false;
-    int bindfs  = 0;
-    int bindds  = 0;
-    int cmd_idx = -1;
-
-    for (int i = 1; i < argc; i++) {
-        char* cur = argv[i];
-        if(strcmp(cur, "--help") == 0 || strcmp(cur, "-h") == 0) {
-            usage(argv[0]);
-            return 0;
-        }
-        if(strcmp(cur, "--") == 0) {
-            cmd_idx = i + 1;
-            break;
-        }
-
-        bool bindf_ro = strcmp(argv[i], "--bindf") == 0;
-        bool bindf_rw = (strcmp(argv[i], "--rw-bindf") == 0);
-        if(bindf_ro || bindf_rw) {
-            if (i + 2 >= argc) {
-                fprintf(stderr, "missing arguments for %s\n", argv[i]);
-                return 1;
-            }
-            if (bindfs >= MAX_BIND) {
-                fprintf(stderr, "too many file binds\n");
-                return 1;
-            }
-            bindf[bindfs].host      = argv[i + 1];
-            bindf[bindfs].target    = argv[i + 2];
-            bindf[bindfs].read_only = bindf_ro;
-            bindfs++;
-            i += 2;
-            args = true;
-            continue;
-        }
-
-        bool bindd_ro = strcmp(argv[i], "--bindd") == 0;
-        bool bindd_rw = (strcmp(argv[i], "--rw-bindd") == 0);
-        if(bindd_ro || bindd_rw) {
-            if (i + 2 >= argc) {
-                fprintf(stderr, "missing arguments for %s\n", argv[i]);
-                return 1;
-            }
-            if (bindds >= MAX_BIND) {
-                fprintf(stderr, "too many file binds\n");
-                return 1;
-            }
-            bindd[bindds].host      = argv[i + 1];
-            bindd[bindds].target    = argv[i + 2];
-            bindd[bindds].read_only = bindd_ro;
-            bindds++;
-            i += 2;
-            args = true;
-            continue;
-        }
-
-        // If something was recognized as a flag/arg
-        // the only way to break is with `--` or reaching the end.
-        if(!args) { 
-            cmd_idx = i;
-            break;
-        }
-    }
-    if(cmd_idx < 0 || cmd_idx >= argc) {
-        fprintf(stderr, "%s: Error: No command to run\n", argv[0]);  
-        usage(argv[0]);
-        return 1;
-    }
-
-
-    int mnt = setup_mount();
-    if(mnt < 0) {
-        fprintf(stderr, "Failed to create mount point");
-        return 1;
-    }
-    if(setup_devices(mnt) < 0) {
-        fprintf(stderr, "Failed to setup devices");
-        close(mnt);
-        return 1;
-    }
+    uint8_t buff[PATH_MAX + 1];
+    PathCtx ctx = {
+        .mount_fd  = mnt,
+        .buff      = buff,
+        .buff_cap  = PATH_MAX + 1
+    };
 
     // User directory binds
-    for (int i = 0; i < bindds; i++) {
-        int rc = bind_dir(mnt, bindd[i].host, bindd[i].target, bindd[i].read_only);
-        if (rc < 0) {
-            fprintf(stderr, "Failed to bind directory '%s' -> '%s'\n", bindd[i].host, bindd[i].target);
+    verbose_header(v, "Mounting User Directories");
+    for (size_t i = 0; i < conf.dirs_cnt; i++) {
+        ctx.host_path = (const uint8_t*)conf.dirs[i].host;
+        ctx.env_path  = (const uint8_t*)conf.dirs[i].target;
+
+        MountErr e = bind_dir(&ctx, v, conf.dirs[i].read_only);
+        verbose_mount_line(&ctx, v, e);
+        if(e != M_SUCCESS) {
             close(mnt);
+            print_mount_error(&ctx, e);
             return 1;
         }
     }
-
+/*
     // User file binds
     for (int i = 0; i < bindfs; i++) {
         int rc = bind_file(mnt, bindf[i].host, bindf[i].target, bindf[i].read_only);
