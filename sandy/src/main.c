@@ -27,6 +27,7 @@ static void usage(const char *prog) {
         "  --bindf-rw   HOST TARGET  Bind HOST file as read & write at TARGET\n"
         "  --bindd      HOST TARGET  Bind HOST directory as read only at TARGET\n"
         "  --bindd-rw   HOST TARGET  Bind HOST directory as read & write at TARGET\n"
+        "  --conf       FILE         Load settings such as binds from a file\n"
         "  --exec-host               COMMAND is started from host path\n"
         "  --bind-cmd                Bind COMMAND in the environment as written.\n"
         "                            If the path is relative the environment root is\n"
@@ -48,18 +49,19 @@ typedef struct bind_info_s {
 #define MAX_BIND 64
 
 typedef struct config_s {
-    BindInfo* dirs;
-    size_t    dirs_cap;
-    size_t    dirs_cnt;
-    BindInfo* files;
-    size_t    files_cnt;
-    size_t    files_cap;
-    size_t    cmd_idx;
-    bool      bind_cmd;
-    bool      exec_host;
-    bool      help;
-    bool      verbose;
-    bool      color;
+    BindInfo*   dirs;
+    size_t      dirs_cap;
+    size_t      dirs_cnt;
+    BindInfo*   files;
+    size_t      files_cnt;
+    size_t      files_cap;
+    size_t      cmd_idx;
+    const char* conf_file;
+    bool        bind_cmd;
+    bool        exec_host;
+    bool        help;
+    bool        verbose;
+    bool        color;
 } Config;
 
 bool process_args(int argc, char** argv, Config* conf) {
@@ -111,16 +113,26 @@ bool process_args(int argc, char** argv, Config* conf) {
             continue;
         }
 
+        if(strcmp(cur, "--conf") == 0) {
+                if((i + 1) >= sep) {
+                fprintf(stderr, "Error: missing file path for `--conf`\n");
+                return false;
+            }
+            conf->conf_file = argv[i + 1];
+            i += 1;
+            continue;
+        }
+
         bool bindd_ro = strcmp(argv[i], "--bindd") == 0;
         bool bindd_rw = strcmp(argv[i], "--bindd-rw") == 0;
         if(bindd_ro || bindd_rw) {
-            if(i + 2 >= argc) {
-                fprintf(stderr, "missing arguments for `%s`\n", argv[i]);
+            if((i + 2) >= sep) {
+                fprintf(stderr, "Error: missing arguments for `%s`\n", argv[i]);
                 return false;
             }
             size_t cnt = conf->dirs_cnt;
             if(cnt >= conf->dirs_cap) {
-                fprintf(stderr, "too many directory binds, max: %zu\n", conf->dirs_cap);
+                fprintf(stderr, "Error: too many directory binds, max: %zu\n", conf->dirs_cap);
                 return false;
             }
             conf->dirs[cnt].host      = argv[i + 1];
@@ -134,13 +146,13 @@ bool process_args(int argc, char** argv, Config* conf) {
         bool bindf_ro = strcmp(argv[i], "--bindf") == 0;
         bool bindf_rw = strcmp(argv[i], "--bindf-rw") == 0;
         if(bindf_ro || bindf_rw) {
-            if(i + 2 >= argc) {
-                fprintf(stderr, "missing arguments for `%s`\n", argv[i]);
+            if((i + 2) >= sep) {
+                fprintf(stderr, "Error: missing arguments for `%s`\n", argv[i]);
                 return false;
             }
             size_t cnt = conf->files_cnt;
             if(cnt >= conf->files_cap) {
-                fprintf(stderr, "too many file binds, max: %zu\n", conf->files_cap);
+                fprintf(stderr, "Error: too many file binds, max: %zu\n", conf->files_cap);
                 return false;
             }
             conf->files[cnt].host      = argv[i + 1];
@@ -244,32 +256,45 @@ int main(int argc, char **argv) {
     };
 
     // User directory binds
-    verbose_header(v, "Mounting User Directories");
-    for (size_t i = 0; i < conf.dirs_cnt; i++) {
-        ctx.host_path = (const uint8_t*)conf.dirs[i].host;
-        ctx.env_path  = (const uint8_t*)conf.dirs[i].target;
+    if(conf.dirs_cnt > 0) {
+        verbose_header(v, "Mounting User Directories");
+        for (size_t i = 0; i < conf.dirs_cnt; i++) {
+            ctx.host_path = (const uint8_t*)conf.dirs[i].host;
+            ctx.env_path  = (const uint8_t*)conf.dirs[i].target;
 
-        MountErr e = bind_dir(&ctx, v, conf.dirs[i].read_only);
-        verbose_mount_line(&ctx, v, e);
-        if(e != M_SUCCESS) {
-            close(mnt);
-            print_mount_error(&ctx, e);
-            return 1;
+            MountErr e = bind_dir(&ctx, v, conf.dirs[i].read_only);
+            verbose_mount_line(&ctx, v, e);
+            if(e != M_SUCCESS) {
+                close(mnt);
+                print_mount_error(&ctx, e);
+                return 1;
+            }
         }
     }
 
-    verbose_header(v, "Mounting User Files");
-    for (size_t i = 0; i < conf.files_cnt; i++) {
-        ctx.host_path = (const uint8_t*)conf.files[i].host;
-        ctx.env_path  = (const uint8_t*)conf.files[i].target;
+    if(conf.files_cnt > 0) {
+        verbose_header(v, "Mounting User Files");
+        for (size_t i = 0; i < conf.files_cnt; i++) {
+            ctx.host_path = (const uint8_t*)conf.files[i].host;
+            ctx.env_path  = (const uint8_t*)conf.files[i].target;
 
-        MountErr e = bind_file(&ctx, v, conf.files[i].read_only);
-        verbose_mount_line(&ctx, v, e);
-        if(e != M_SUCCESS) {
-            close(mnt);
-            print_mount_error(&ctx, e);
+            MountErr e = bind_file(&ctx, v, conf.files[i].read_only);
+            verbose_mount_line(&ctx, v, e);
+            if(e != M_SUCCESS) {
+                close(mnt);
+                print_mount_error(&ctx, e);
+                return 1;
+            }
+        }
+    }
+
+    if(conf.conf_file != nullptr) {
+        verbose_header(v, "Loading Config File");
+        ConFile* cf = con_file_new(conf.conf_file, v);
+        if(cf == nullptr) {
             return 1;
         }
+        con_file_free(cf);
     }
 
     if(conf.bind_cmd) {
