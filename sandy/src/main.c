@@ -310,11 +310,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Todo load rest of args and something for env.
-    char *const env_argv[] = { NULL };
     char *const env_envp[] = { NULL };
-
-    int res = execveat(cmd_fd, "", env_argv, env_envp, AT_EMPTY_PATH);
+    int res = execveat(cmd_fd, "", &(argv[conf.cmd_idx]), env_envp, AT_EMPTY_PATH);
     if(res < 0) {
         perror("execveat");
     }

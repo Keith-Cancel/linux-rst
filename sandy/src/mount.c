@@ -139,20 +139,27 @@ bool setup_libs(int mnt, Verbose v) {
     verbose_header(v, "Configuring: libs");
 
     const char* links[][2] = {
-        { "/lib",                   "/usr/lib" },
-        { "/lib64",                 "/usr/lib" },
-        { "/usr/lib/ld-linux.so.2", "/usr/lib32/ld-linux.so.2" },
-        { nullptr,  nullptr    }
+        { "/lib",                   "usr/lib"          },
+        { "/lib64",                 "usr/lib"          },
+        { "/usr/lib32/libm.so",     "libm.so.6"        },
+        { "/usr/lib64",             "lib"              },
+        { "/usr/lib/ld-linux.so.2", "../ld-linux.so.2" },
+        { nullptr,  nullptr }
     };
 
     const char* const libs[] = {
         "/usr/lib/ld-linux-x86-64.so.2",
         "/usr/lib/libc.so",
         "/usr/lib/libc.so.6",
+        "/usr/lib/libm.so",
+        "/usr/lib/libm.so.6",
+        "/usr/lib/libgcc_s.so.1",
 
         "/usr/lib32/ld-linux.so.2",
         "/usr/lib32/libc.so",
         "/usr/lib32/libc.so.6",
+        "/usr/lib32/libm.so.6",
+        "/usr/lib32/libgcc_s.so.1",
         nullptr,
     };
 
