@@ -12,7 +12,7 @@
 
 
 static uint8_t*   next_line_priv(ConFile *cf);
-static void       print_err(const char* path, int errnum);
+static ConFileErr cf_map_errno(int errnum);
 static ConFileErr parse_command(uint8_t* line);
 
 struct con_file_s {
@@ -21,49 +21,37 @@ struct con_file_s {
     size_t   size;
 };
 
-ConFile* con_file_new(const char* path, Verbose verbose) {
+ConFileErr con_file_new(ConFile** new_file, const char* path) {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
-    int errnum = errno;
-
-    verbose_line(verbose, "open", path, fd < 0);
     if(fd < 0) {
-        print_err(path, errnum);
-        return nullptr;
+        return cf_map_errno(errno);
     }
 
-
     struct stat st = { 0 };
-    int ret = fstat(fd, &st);
-    errnum = errno;
-
-    verbose_line(verbose, "fstat", path, ret < 0);
-    if(ret < 0) {
+    if(fstat(fd, &st) < 0) {
+        D_ERROR("fstat() for the config file failed", errno);
         close(fd);
-        D_ERROR("fstat() for the config file failed", errnum);
-        return nullptr;
+        return CF_SYS_ERROR;
     }
 
     if(!S_ISREG(st.st_mode)) {
-        fprintf(stderr, "Error: Config file path is not a file: '%s'\n", path);
         close(fd);
-        return nullptr;
+        return CF_NON_FILE;
     }
 
     ConFile *cf = malloc(sizeof(ConFile));
     if (cf == nullptr) {
-        fprintf(stderr, "Error: Failed too allocate memory for config file: '%s'\n", path);
         close(fd);
-        return nullptr;
+        return CF_NO_MEM;
     }
 
     cf->size   = (size_t)st.st_size;
     cf->cursor = 0;
     cf->data   = malloc(cf->size + 1);
     if(cf->data == nullptr) {
-        fprintf(stderr, "Error: Failed too allocate memory for config file: '%s'\n", path);
         free(cf);
         close(fd);
-        return nullptr;
+        return CF_NO_MEM;
     }
     cf->data[cf->size] = '\0';
 
@@ -85,21 +73,20 @@ ConFile* con_file_new(const char* path, Verbose verbose) {
         pos += amt;
         rem -= amt;
     }
-    errnum = errno;
+    int errnum = errno;
     close(fd);
-    verbose_line(verbose,"read", path, rem > 0);
 
     if(rem > 0 && eof) {
         con_file_free(cf);
-        fprintf(stderr, "Error: Config file unexpected EOF: '%s'\n", path);
-        return nullptr;
+        return CF_UNEXPEC_EOF;
     }
     if(rem > 0) {
         con_file_free(cf);
         D_ERROR("Failed reading config file", errnum);
-        return nullptr;
+        return CF_SYS_ERROR;
     }
-    return cf;
+    *new_file = cf;
+    return CF_SUCCESS;
 }
 
 // Returns NULL when there are no more lines.
@@ -121,25 +108,21 @@ void con_file_free(ConFile* file) {
     free(file);
 }
 
-static void print_err(const char* path, int errnum) {
+static ConFileErr cf_map_errno(int errnum) {
     switch(errnum) {
         case ENOENT:
-            fprintf(stderr, "Error: Config file not found: '%s'\n", path);
-            break;
+            return CF_NOT_FOUND;
         case ENAMETOOLONG:
-            fprintf(stderr, "Error: Config file path is too long: '%s'\n", path);
-            break;
+            return CF_TOO_LONG;
         case EACCES:
         case EPERM:
-            fprintf(stderr, "Error: Permission denied for config file: '%s'\n", path);
-            break;
+            return CF_NO_PERM;
         case ELOOP:
         case ENOTDIR:
-            fprintf(stderr, "Error: A path component of the config file is not walkable: '%s'\n", path);
-            break;
+            return CF_UNWALKABLE;
         default:
             D_ERROR("A system failure occurred when opening the config file", errnum);
-            break;
+            return CF_SYS_ERROR;
     }
 }
 
