@@ -108,7 +108,7 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
 
     uint8_t* kind = ln;
     uint8_t* src  = nullptr;
-    uint8_t  dst  = nullptr;
+    uint8_t* dst  = nullptr;
 
     uint8_t* pos  = ln;
     // Find the first space or end of str
@@ -223,7 +223,22 @@ static uint8_t* parse_quote_str(uint8_t* str) {
     if(*str != '"') {
         //return /* UNOPENED */;
     }
-    uint8_t* p = str + 1;
+
+    uint8_t* start = str + 1;
+
+    uint8_t* w = start; // write
+    uint8_t* r = start; // read
+    
+    for(;;) {
+        uint8_t c = *r;
+        if(c == '\0') {
+            //return /* UNTERMINATED */;
+        }
+        // Closed/terminated
+        if(c == '"') {
+
+        }
+    }
 
 
 
