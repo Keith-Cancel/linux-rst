@@ -32,4 +32,4 @@ build $obj_dir/verbose.o:    cc ./src/verbose.c    | ./include/verbose.h
 
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
-build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o $obj_dir/verbose.o $obj_dir/diag.o $obj_dir/strerror_r.o
+build ./sandy: link $obj_dir/main.o $obj_dir/mount.o $obj_dir/priv.o $obj_dir/verbose.o $obj_dir/diag.o $obj_dir/strerror_r.o $obj_dir/conf.o
