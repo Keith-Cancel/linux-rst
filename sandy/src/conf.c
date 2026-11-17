@@ -14,6 +14,7 @@
 static uint8_t*   next_line_priv(ConFile *cf);
 static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 static ConFileErr cf_map_errno(int errnum);
+static bool       map_kind(const uint8_t* kind, ConFileKind* out);
 
 #define Q_UNOPENED 0     // missing opening `"`
 #define Q_UNCLOSED 1     // missing a closing `"`
@@ -121,7 +122,7 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
         pos += 1;
     }
     // A space must exist before <dst>.
-    if (*pos != ' ') {
+    if(*pos != ' ') {
         return CF_CMD_DST_NO_SP;
     }
     // Overwrite the space with '\0' to make a new string for <kind>
@@ -149,11 +150,38 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     cmd_out->src = src;
 
     // No extra data after closing quote of <src>.
-    if (*pos != '\0') {
+    if(*pos != '\0') {
         return CF_CMD_TRAILING;
     }
 
+    if(!map_kind(kind, &(cmd_out->kind))) {
+        return CF_CMD_KIND_UNKNOWN;
+    }
     return CF_SUCCESS;
+}
+
+static bool map_kind(const uint8_t* kind, ConFileKind* out) {
+    if(strcmp((const char*)kind, "lnk") == 0) {
+        *out = CF_K_LINK;
+        return true;
+    }
+    if(strcmp((const char*)kind, "bindf") == 0) {
+        *out = CF_K_BINDF;
+        return true;
+    }
+    if(strcmp((const char*)kind, "bindf_rw") == 0) {
+        *out = CF_K_BINDF_RW;
+        return true;
+    }
+    if(strcmp((const char*)kind, "bindd") == 0) {
+        *out = CF_K_BINDD;
+        return true;
+    }
+    if(strcmp((const char*)kind, "bindd_rw") == 0) {
+        *out = CF_K_BINDD_RW;
+        return true;
+    }
+    return false;
 }
 
 void con_file_free(ConFile* file) {

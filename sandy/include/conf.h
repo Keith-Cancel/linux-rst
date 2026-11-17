@@ -8,6 +8,10 @@ typedef struct con_file_s ConFile;
 typedef enum : uint32_t {
     CF_K_NONE = 0,
     CF_K_LINK,
+    CF_K_BINDF,
+    CF_K_BINDF_RW,
+    CF_K_BINDD,
+    CF_K_BINDD_RW,
 } ConFileKind;
 
 #define CF_E_FILE(v) (((uint32_t)0x0000'0000) | (uint16_t)(v))
