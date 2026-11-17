@@ -122,7 +122,7 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
     // A space must exist before <dst>.
     if (*pos != ' ') {
-        return CF_CMD_DST_NO_SPC;
+        return CF_CMD_DST_NO_SP;
     }
     // Overwrite the space with '\0' to make a new string for <kind>
     *pos = '\0';
@@ -131,29 +131,27 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     dst = pos;
     uint8_t ret = parse_quote_str(pos, &pos);
     if(ret != Q_SUCCESS) {
-        return CF_E_CMD_S(2, ret);
+        return CF_E_CMD_S(1, ret);
     }
+    cmd_out->dst = dst;
 
     // A space must exist before <src>
     if(*pos != ' ') {
-        return CF_CMD_SRC_NO_SPC;
+        return CF_CMD_SRC_NO_SP;
     }
     pos += 1;
 
     src = pos;
     ret = parse_quote_str(pos, &pos);
     if(ret != Q_SUCCESS) {
-        return CF_E_CMD_S(3, ret);
+        return CF_E_CMD_S(2, ret);
     }
+    cmd_out->src = src;
 
-
-    /*
-    if(*pos != '"') {
-        return CF_CMD_SRC_UNOPENED;
+    // No extra data after closing quote of <src>.
+    if (*pos != '\0') {
+        return CF_CMD_TRAILING;
     }
-    // src statrs after open `"`
-    pos += 1;
-    src = pos;*/
 
     return CF_SUCCESS;
 }
