@@ -12,9 +12,11 @@
 
 
 static uint8_t*   next_line_priv(ConFile *cf);
-static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 static ConFileErr cf_map_errno(int errnum);
 static bool       map_kind(const uint8_t* kind, ConFileKind* out);
+
+static size_t    line_term_len(uint8_t* str);
+static uint8_t   parse_quote_str(uint8_t* str, uint8_t** after);
 
 #define Q_UNOPENED 0     // missing opening `"`
 #define Q_UNCLOSED 1     // missing a closing `"`
@@ -316,4 +318,44 @@ static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
         r += 1;
         w += 1;
     }
+}
+
+static const uint8_t FIRST[256] = {
+    [0x0a] = 1, // \n
+    [0x0d] = 3, // \r or \r\n
+    [0xc2] = 6, // U+0085: [0xc2, 0x85]
+    [0xe2] = 9, // U+2028: [0xe2, 0x80, 0xa8] or U+2029: [0xe2, 0x80, 0xa9]
+};
+
+static const uint8_t SECOND[4 * 3] = {
+//  match | match len | no match len
+    0x00,   0,          0, // Just a place holder
+    0x0a,   2,          1, // \r\n or \r
+    0x85,   2,          0, // U+85
+    0x80,   3,          0, // U+2028 or U+2029
+};
+
+// Get how long a line terminator.
+// Will not read past a null byte.
+// Returns:
+//    0 : No line terminator
+//    1 : Length one line terimators
+//    2 : Length two line terinators
+//    3 : Length three Line Separators
+size_t line_term_len(const uint8_t* str) {
+    size_t fir = FIRST[*str];
+    if(fir <= 1) {
+        return fir;
+    }
+
+    size_t off = 1 + (str[1] != SECOND[fir]);
+    size_t sec = SECOND[fir + off];
+    if(sec <= 2) {
+        return sec;
+    }
+
+    // mask last bit for both 0xa8 and 0xa9
+    size_t last = (str[2] & 0xfe) == 0xa8;
+    // Should just become a lea rax, [2 * rax + rax]
+    return (last << 1) + last;
 }
