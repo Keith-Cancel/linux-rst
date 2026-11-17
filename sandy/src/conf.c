@@ -15,8 +15,8 @@ static uint8_t*   next_line_priv(ConFile *cf);
 static ConFileErr cf_map_errno(int errnum);
 static bool       map_kind(const uint8_t* kind, ConFileKind* out);
 
-static size_t    line_term_len(uint8_t* str);
-static uint8_t   parse_quote_str(uint8_t* str, uint8_t** after);
+static size_t  line_term_len(const uint8_t* str);
+static uint8_t parse_quote_str(uint8_t* str, uint8_t** after);
 
 #define Q_UNOPENED 0     // missing opening `"`
 #define Q_UNCLOSED 1     // missing a closing `"`
@@ -255,23 +255,30 @@ static uint8_t* next_line_priv(ConFile *cf) {
         return nullptr;
     }
 
-    size_t rem  = sz - cur;
-    uint8_t* ln = dat + cur;
-    uint8_t* nl = memchr(ln, '\n', rem);
-    
-    if(nl != nullptr) {
-        *nl = '\0';
-        // Check for carriage return.
-        if(nl > ln && *(nl - 1) == '\r') {
-            *(nl - 1) = '\0'; // Also null out.
+    uint8_t* ln  = dat + cur;
+    size_t   len = 0;
+    uint8_t* pos = ln;
+    uint8_t* end = dat + sz;
+    while(pos < end) {
+        len = line_term_len(pos);
+        if(len != 0) {
+            break;
         }
-        cf->cursor = (nl - dat) + 1;
-    } else {
-        // I over allocate in new by 1 and set to '\0'
-        // so don't need to anything here but update
-        // the curose.
-        cf->cursor = sz;
+        pos += 1;
     }
+
+    if(len == 0) {
+        // I over allocate in new by 1 and set it to '\0'.
+        // So I just need to update only the cursor.
+        cf->cursor = sz;
+        return ln;
+    }
+
+    // Zero out the entire new line.
+    for (size_t i = 0; i < len; i++) {
+        pos[i] = '\0';
+    }
+    cf->cursor = (pos - dat) + len;
     return ln;
 }
 
@@ -342,7 +349,7 @@ static const uint8_t SECOND[4 * 3] = {
 //    1 : Length one line terimators
 //    2 : Length two line terinators
 //    3 : Length three Line Separators
-size_t line_term_len(const uint8_t* str) {
+static size_t line_term_len(const uint8_t* str) {
     size_t fir = FIRST[*str];
     if(fir <= 1) {
         return fir;
