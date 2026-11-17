@@ -111,6 +111,10 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     if(ln[0] == '\0') {
         return CF_CMD_EMPTY;
     }
+    // Line Comment
+    if(ln[0] == '#') {
+        return CF_CMD_EMPTY;
+    }
 
     uint8_t* kind = ln;
     uint8_t* dst  = nullptr;
