@@ -23,10 +23,10 @@ static void usage(const char *prog) {
         "fun, and not because I needed to since there other ways I could achieve\n"
         "similar.\n\n"
         "Options (before --):\n"
-        "  --bindf      HOST TARGET  Bind HOST file as read only at TARGET\n"
-        "  --bindf-rw   HOST TARGET  Bind HOST file as read & write at TARGET\n"
-        "  --bindd      HOST TARGET  Bind HOST directory as read only at TARGET\n"
-        "  --bindd-rw   HOST TARGET  Bind HOST directory as read & write at TARGET\n"
+        "  --bindf      TARGET HOST  Bind HOST file as read only at TARGET\n"
+        "  --bindf-rw   TARGET HOST  Bind HOST file as read & write at TARGET\n"
+        "  --bindd      TARGET HOST  Bind HOST directory as read only at TARGET\n"
+        "  --bindd-rw   TARGET HOST  Bind HOST directory as read & write at TARGET\n"
         "  --conf       FILE         Load settings such as binds from a file\n"
         "  --exec-host               COMMAND is started from host path\n"
         "  --bind-cmd                Bind COMMAND in the environment as written.\n"
@@ -135,8 +135,8 @@ bool process_args(int argc, char** argv, Config* conf) {
                 fprintf(stderr, "Error: too many directory binds, max: %zu\n", conf->dirs_cap);
                 return false;
             }
-            conf->dirs[cnt].host      = argv[i + 1];
-            conf->dirs[cnt].target    = argv[i + 2];
+            conf->dirs[cnt].target    = argv[i + 1];
+            conf->dirs[cnt].host      = argv[i + 2];
             conf->dirs[cnt].read_only = bindd_ro;
             conf->dirs_cnt = cnt + 1;
             i += 2;
@@ -155,8 +155,8 @@ bool process_args(int argc, char** argv, Config* conf) {
                 fprintf(stderr, "Error: too many file binds, max: %zu\n", conf->files_cap);
                 return false;
             }
-            conf->files[cnt].host      = argv[i + 1];
-            conf->files[cnt].target    = argv[i + 2];
+            conf->files[cnt].target    = argv[i + 1];
+            conf->files[cnt].host      = argv[i + 2];
             conf->files[cnt].read_only = bindd_ro;
             conf->files_cnt = cnt + 1;
             i += 2;
