@@ -21,6 +21,7 @@ static bool fd_is_file     (int fd);
 static bool enter_namespace(void);
 
 static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
+static MountErr open_host            (PathCtx* ctx, unsigned flags, int* fd_out);
 static MountErr mkdir_env            (int mnt, const uint8_t* path, mode_t mode, Verbose v);
 static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose v, int* fd_out);
 static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
@@ -517,6 +518,8 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
     return M_SUCCESS;
 }
 
+
+
 void print_mount_error(PathCtx* ctx, MountErr error) {
     const char* env = ctx->env_dst  ? (const char*)ctx->env_dst : "(nullptr)";
     const char* hst = ctx->host_src ? (const char*)ctx->host_src : "(nullptr)";
@@ -814,6 +817,30 @@ static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
             return M_HST_PATH_UNWALKABLE;
         default:
             D_WARN("A system error occurred for open_tree() for a host path.", errnum);
+            return M_HST_PATH_SYS_ERR;
+    }
+}
+
+static MountErr open_host(PathCtx* ctx, unsigned flags, int* fd_out) {
+    int fd = open((const char*)(ctx->host_src), flags | O_CLOEXEC);
+    if(fd >= 0) {
+        *fd_out = fd;
+        return M_SUCCESS;
+    }
+    int errnum = errno;
+    switch(errnum) {
+        case EPERM:
+        case EACCES:
+            return M_HST_PATH_PERM;
+        case ENAMETOOLONG:
+            return M_HST_PATH_TOO_LONG;
+        case ENOENT:
+            return M_HST_PATH_NOT_FOUND;
+        case ELOOP:
+        case ENOTDIR:
+            return M_HST_PATH_UNWALKABLE;
+        default:
+            D_WARN("A system error occurred for open() for a host path.", errnum);
             return M_HST_PATH_SYS_ERR;
     }
 }
