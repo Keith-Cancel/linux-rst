@@ -308,10 +308,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if(!setup_libs(mnt, v)) {
-        close(mnt);
-        return 1;
-    }
+    //if(!setup_libs(mnt, v)) {
+    //    close(mnt);
+    //    return 1;
+    //}
 
     if(!setup_devices(mnt, v)) {
         close(mnt);
