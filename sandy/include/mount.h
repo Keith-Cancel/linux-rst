@@ -49,10 +49,9 @@ bool swap_root_to_mount(int mnt, Verbose v);
 MountErr bind_dev    (PathCtx* ctx, Verbose verbose);
 MountErr bind_dir    (PathCtx* ctx, Verbose verbose, bool read_only);
 MountErr bind_file   (PathCtx* ctx, Verbose verbose, bool read_only);
-
-MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, Verbose verbose);
+MountErr make_symlink(PathCtx* ctx, Verbose verbose);
 
 void print_mount_error(PathCtx* ctx, MountErr error);
-void verbose_mount_line(PathCtx* ctx, Verbose verbose, MountErr err);
+void verbose_mnt_action(PathCtx* ctx, Verbose verbose, MountErr err, const char* action);
 
 #endif

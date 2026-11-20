@@ -196,7 +196,7 @@ bool process_conf(const char* path, Verbose v) {
 
     bool ret = true;
     ConFileCmd cmd = { 0 };
-    for(;;) {
+    while(ret) {
         e = con_file_next_cmd(cf, &cmd);
         if(e == CF_CMD_DONE) {
             break;
@@ -208,7 +208,14 @@ bool process_conf(const char* path, Verbose v) {
             ret = false;
             break;
         }
-        // todo
+        switch(cmd.kind) {
+            case CF_K_LINK:
+                break;
+            default:
+                e = CF_CMD_KIND_UNKNOWN;
+                ret = false;
+                break;
+        }
     }
     
     if(!ret) {
@@ -299,7 +306,7 @@ int main(int argc, char **argv) {
             ctx.env_path  = (const uint8_t*)conf.dirs[i].target;
 
             MountErr e = bind_dir(&ctx, v, conf.dirs[i].read_only);
-            verbose_mount_line(&ctx, v, e);
+            verbose_mnt_action(&ctx, v, e, "mount");
             if(e != M_SUCCESS) {
                 close(mnt);
                 print_mount_error(&ctx, e);
@@ -315,7 +322,7 @@ int main(int argc, char **argv) {
             ctx.env_path  = (const uint8_t*)conf.files[i].target;
 
             MountErr e = bind_file(&ctx, v, conf.files[i].read_only);
-            verbose_mount_line(&ctx, v, e);
+            verbose_mnt_action(&ctx, v, e, "mount");
             if(e != M_SUCCESS) {
                 close(mnt);
                 print_mount_error(&ctx, e);
@@ -336,7 +343,7 @@ int main(int argc, char **argv) {
         ctx.host_path = (const uint8_t*)cmd;
         ctx.env_path  = (const uint8_t*)cmd;
         MountErr e = bind_file(&ctx, v, false);
-        verbose_mount_line(&ctx, v, e);
+        verbose_mnt_action(&ctx, v, e, "mount");
         if(e != M_SUCCESS) {
             close(mnt);
             print_mount_error(&ctx, e);

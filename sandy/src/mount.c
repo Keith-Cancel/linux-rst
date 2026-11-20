@@ -109,7 +109,7 @@ bool setup_devices(int mnt, Verbose v) {
         ctx.host_path = (const uint8_t*)dev;
 
         MountErr e = bind_dev(&ctx, v);
-        verbose_mount_line(&ctx, v, e);
+        verbose_mnt_action(&ctx, v, e, "mount");
         if(e != M_SUCCESS) {
             print_mount_error(&ctx, e);
             return false;
@@ -120,7 +120,7 @@ bool setup_devices(int mnt, Verbose v) {
     ctx.host_path = (const uint8_t*)"/dev/tty";
 
     MountErr e = bind_dev(&ctx, v);
-    verbose_mount_line(&ctx, v, e);
+    verbose_mnt_action(&ctx, v, e, "mount");
     if(verbose_enabled(v) && e != M_SUCCESS) {
         print_mount_error(&ctx, e);
     }
@@ -171,7 +171,7 @@ bool setup_libs(int mnt, Verbose v) {
         ctx.host_path = (const uint8_t*)cur;
 
         MountErr e = bind_file(&ctx, v, true);
-        verbose_mount_line(&ctx, v, e);
+        verbose_mnt_action(&ctx, v, e, "mount");
         if(e != M_SUCCESS) {
             print_mount_error(&ctx, e);
             return false;
@@ -181,13 +181,13 @@ bool setup_libs(int mnt, Verbose v) {
 
     const char *(*lnk)[2] = links;
     while((*lnk)[0] != nullptr) {
-        const uint8_t* dest   = (const uint8_t*)((*lnk)[0]);
-        const uint8_t* target = (const uint8_t*)((*lnk)[1]);
+        ctx.env_path  = (const uint8_t*)((*lnk)[0]);
+        ctx.host_path = (const uint8_t*)((*lnk)[1]);
 
-        MountErr e = make_symlink(mnt, dest, target, v);
+        MountErr e = make_symlink(&ctx, v);
+        verbose_mnt_action(&ctx, v, e, "link");
         if(e != M_SUCCESS) {
             ctx.host_path = (const uint8_t*)"";
-            ctx.env_path  = dest;
             print_mount_error(&ctx, e);
             return false;
         }
@@ -313,9 +313,11 @@ done:
     return ret;
 }
 
-MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, Verbose verbose) {
+MountErr make_symlink(PathCtx* ctx, Verbose verbose) {
+    int mnt = ctx->mount_fd;
+
     uint8_t buff[PATH_MAX];
-    MountErr ret = prep_env_path(env_path, buff, PATH_MAX);
+    MountErr ret = prep_env_path(ctx->env_path, buff, PATH_MAX);
     if(ret != M_SUCCESS) {
         return ret;
     }
@@ -325,10 +327,8 @@ MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, V
         return ret;
     }
 
-    int chk = symlinkat((const char*)target, mnt, (const char*)buff);
+    int chk = symlinkat((const char*)ctx->host_path, mnt, (const char*)buff);
     int err = errno;
-
-    verbose_line(verbose, "symlink", (const char*)env_path, chk < 0);
     if(chk >= 0) {
         return M_SUCCESS;
     }
@@ -349,6 +349,7 @@ MountErr make_symlink(int mnt, const uint8_t* env_path, const uint8_t* target, V
         case EROFS:
             return M_ENV_PATH_READ_ONLY;
         default:
+            verbose_line(verbose, "symlinkat", (const char*)ctx->env_path, V_FAIL);
             D_WARN("A system error occurred for symlinkat() for an environment path.", err);
             return M_ENV_PATH_SYS_ERR;
     }
@@ -597,13 +598,13 @@ void print_mount_error(PathCtx* ctx, MountErr error) {
     fwrite(out, 1, len, stderr);
 }
 
-void verbose_mount_line(PathCtx* ctx, Verbose verbose, MountErr err) {
+void verbose_mnt_action(PathCtx* ctx, Verbose verbose, MountErr err, const char* action) {
     if(!verbose_enabled(verbose)) {
         return;
     }
     char buff[PATH_MAX + 1];
     snprintf(buff, PATH_MAX, "host: %s", ctx->host_path);
-    verbose_line(verbose, "mount", buff, err != M_SUCCESS);
+    verbose_line(verbose, action, buff, err != M_SUCCESS);
     snprintf(buff, PATH_MAX, "env:  %s", ctx->env_path);
     verbose_line(verbose, "", buff, V_NONE);
 }
