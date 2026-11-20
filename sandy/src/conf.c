@@ -193,8 +193,12 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
 }
 
 static bool map_kind(const uint8_t* kind, ConFileKind* out) {
-    if(strcmp((const char*)kind, "lnk") == 0) {
+    if(strcmp((const char*)kind, "link") == 0) {
         *out = CF_K_LINK;
+        return true;
+    }
+    if(strcmp((const char*)kind, "copy") == 0) {
+        *out = CF_K_COPY;
         return true;
     }
     if(strcmp((const char*)kind, "bindf") == 0) {

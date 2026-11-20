@@ -218,6 +218,10 @@ bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
                 me = make_symlink(ctx, v);
                 verbose_mnt_action(ctx, v, me, "link");
                 break;
+            case CF_K_COPY:
+                me = copy_file(ctx, v, false);
+                verbose_mnt_action(ctx, v, me, "copy");
+                break;
             case CF_K_BINDF:
                 me = bind_file(ctx, v, true);
                 verbose_mnt_action(ctx, v, me, "mount");
