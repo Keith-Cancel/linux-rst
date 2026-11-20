@@ -55,12 +55,14 @@ ConFileErr con_file_new(ConFile** new_file, const char* path) {
 
     cf->size   = (size_t)st.st_size;
     cf->cursor = 0;
-    cf->data   = malloc(cf->size + 1);
+    // Over allocate by 4
+    cf->data   = malloc(cf->size + 4);
     if(cf->data == nullptr) {
         free(cf);
         close(fd);
         return CF_NO_MEM;
     }
+    memset((cf-> data + cf->sz)) + 4;
     cf->data[cf->size] = '\0';
 
     size_t   rem = cf->size;
@@ -327,19 +329,13 @@ static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
     }
 }
 
-static const uint8_t FIRST[256] = {
+static const uint8_t NL_FIRST[256] = {
     [0x0a] = 1, // \n
-    [0x0d] = 3, // \r or \r\n
-    [0xc2] = 6, // U+0085: [0xc2, 0x85]
-    [0xe2] = 9, // U+2028: [0xe2, 0x80, 0xa8] or U+2029: [0xe2, 0x80, 0xa9]
-};
-
-static const uint8_t SECOND[4 * 3] = {
-//  match | match len | no match len
-    0x00,   0,          0, // Just a place holder
-    0x0a,   2,          1, // \r\n or \r
-    0x85,   2,          0, // U+85
-    0x80,   3,          0, // U+2028 or U+2029
+    // use the the three bits 5, 6 to store extra data (match fail len and match len)
+    // also uses bit 7 and 4 as part the len.
+    [0x0d] = 0x0a | 0b10 << 5, // \r or \r\n
+    [0xc2] = 0x85 | 0b10 << 5, // U+0085: [0xc2, 0x85]
+    [0xe2] = 0x80 | 0b11 << 5, // U+2028: [0xe2, 0x80, 0xa8] or U+2029: [0xe2, 0x80, 0xa9]
 };
 
 // Get how long a line terminator.
@@ -349,14 +345,15 @@ static const uint8_t SECOND[4 * 3] = {
 //    1 : Length one line terimators
 //    2 : Length two line terinators
 //    3 : Length three Line Separators
-static size_t line_term_len(const uint8_t* str) {
-    size_t fir = FIRST[*str];
+size_t line_term_len(const uint8_t* str) {
+    uint8_t fir = NL_FIRST[str[0]];
     if(fir <= 1) {
         return fir;
     }
-
-    size_t off = 1 + (str[1] != SECOND[fir]);
-    size_t sec = SECOND[fir + off];
+    // mask the extra data out with 0x9f
+    uint8_t cmp = (fir & 0x9f) == str[1];
+    uint8_t shf = (cmp + cmp) + 3;  // 3 or 5
+    uint8_t sec = (fir >> shf) & 3; // Keep only 2 bits
     if(sec <= 2) {
         return sec;
     }
@@ -366,3 +363,39 @@ static size_t line_term_len(const uint8_t* str) {
     // Should just become a lea rax, [2 * rax + rax]
     return (last << 1) + last;
 }
+
+/*
+#if defined(__GNUC__) || defined(__clang__)
+    #define likely(x)   __builtin_expect(!!(x), 1)
+    #define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+    #define likely(x)   (x)
+    #define unlikely(x) (x)
+#endif
+
+
+static size_t line_term_len(const uint8_t* str) {
+    uint8_t fir = str[0];
+    if(likely(fir > 0xf && fir < 0xc2)) {
+        return 0;
+    }
+    if(fir == 0x0a) { // \n
+        return 1;
+    }
+    uint8_t sec = str[1];
+    if(fir == 0x0d) { // \r
+        return 1 + (sec == 0x0a); // if \n after \r it's two.
+    }
+    if(fir == 0xc2) { // U+85
+        return (sec == 0x85) << 1;
+    }
+    if(fir == 0xe2 && sec == 0x80) { // U+2028 and U+2029
+        // mask last bit for both 0xa8 and 0xa9
+        size_t last = (str[2] & 0xfe) == 0xa8;
+        // Should just become a lea rax, [2 * rax + rax]
+        return (last << 1) + last;
+    }
+    return 0;
+}
+*/
+
