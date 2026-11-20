@@ -2,6 +2,7 @@
 #define _UTF8_UTIL_FILE_H
 
 #include <stdbit.h>
+#include <string.h>
 
 #if defined(__BMI2__)
 #include <immintrin.h>
@@ -46,7 +47,7 @@ static inline uint32_t utf8_load_padded(const uint8_t* data) {
 }
 
 static inline unsigned utf8_len(uint32_t utf8) {
-    unsigned lz = __builtin_clz(~utf8);
+    unsigned lz = stdc_leading_ones(utf8);
     return lz + (lz == 0);
 }
 
