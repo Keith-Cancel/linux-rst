@@ -300,7 +300,7 @@ static bool is_white_space(uint32_t code_point) {
 }
 
 static uint8_t* eat_white_space(uint8_t* str) {
-    while(*str != '\0') {
+    for(;;) {
         const uint8_t* nxt = str;
         uint32_t cpt = utf8_next_padded_unchecked(&nxt);
         if(!is_white_space(cpt)) {
