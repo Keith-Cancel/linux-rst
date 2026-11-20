@@ -31,6 +31,7 @@ struct con_file_s {
     uint8_t* data;
     size_t   cursor;
     size_t   size;
+    size_t   ln_num;
 };
 
 ConFileErr con_file_new(ConFile** new_file, const char* path) {
@@ -59,6 +60,7 @@ ConFileErr con_file_new(ConFile** new_file, const char* path) {
 
     cf->size   = (size_t)st.st_size;
     cf->cursor = 0;
+    cf->ln_num = 0;
     // Over allocate by 4
     cf->data   = malloc(cf->size + 4);
     if(cf->data == nullptr) {
@@ -101,6 +103,10 @@ ConFileErr con_file_new(ConFile** new_file, const char* path) {
     }
     *new_file = cf;
     return CF_SUCCESS;
+}
+
+size_t con_file_line_num(ConFile* cf) {
+    return cf->ln_num; 
 }
 
 // Returns NULL when there are no more lines.
@@ -240,6 +246,52 @@ void con_file_print_new_error(ConFileErr err, const char* path) {
             break;
     }
     fprintf(stderr, "Error: %s: '%s'\n", msg, path);
+}
+
+void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
+    const char* msg = "UNKNOWN";
+    switch(err) {
+        case CF_CMD_DONE:
+            msg = "Finished processing all commands";
+            break;
+        case CF_CMD_EMPTY:
+            msg = "The line is empty or commented out";
+            break;
+        case CF_CMD_TRAILING:
+            msg = "Trailing data or text exists after the command's source";
+            break;
+        case CF_CMD_KIND_UNKNOWN:
+            msg = "Unrecognized command or operation";
+            break;
+        case CF_CMD_DST_UNOPENED:
+            msg = "The command's destination has no opening '\"'";
+            break;
+        case CF_CMD_DST_UNCLOSED:
+            msg = "The command's destination has no closing '\"'";
+            break;
+        case CF_CMD_DST_BAD_ESC:
+            msg = "The command's destination has a truncated or unrecognized escape sequence";
+            break;
+        case CF_CMD_DST_NO_SP:
+            msg = "The command's has no white space before the destination";
+            break;
+        case CF_CMD_SRC_UNOPENED:
+            msg = "The command's source has no opening '\"'";
+            break;
+        case CF_CMD_SRC_UNCLOSED:
+            msg = "The command's source has no closing '\"'";
+            break;
+        case CF_CMD_SRC_BAD_ESC:
+            msg = "The command's source has a truncated or unrecognized escape sequence";
+            break;
+        case CF_CMD_SRC_NO_SP:
+            msg = "The command's has no white space before the source";
+            break;
+        default:
+            D_ERROR("Unknown command error value");
+            break;
+    }
+    fprintf(stderr, "Error: %s:%zu: %s\n", path, ln_num, msg);
 }
 
 static ConFileErr cf_map_errno(int errnum) {

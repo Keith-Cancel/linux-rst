@@ -60,6 +60,7 @@ typedef struct env_cmd_s {
 } ConFileCmd;
 
 ConFileErr con_file_new (ConFile** new_file, const char* path);
+size_t     con_file_line_num(ConFile* cf);
 void       con_file_free(ConFile* file);
 
 // Returns NULL when there are no more lines.
@@ -68,5 +69,6 @@ const uint8_t *con_file_next_line(ConFile* cf);
 ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out);
 
 void con_file_print_new_error(ConFileErr err, const char* path);
+void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num);
 
 #endif
