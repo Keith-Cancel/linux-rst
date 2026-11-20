@@ -183,6 +183,42 @@ bool process_args(int argc, char** argv, Config* conf) {
     return true;
 }
 
+bool process_conf(const char* path, Verbose v) {
+    ConFile* cf  = nullptr;
+    verbose_header(v, "Loading Config File");
+
+    ConFileErr e = con_file_new(&cf, path);
+    verbose_line(v, "open", path, e != CF_SUCCESS);
+    if(e != CF_SUCCESS) {
+        con_file_print_new_error(e, path);
+        return false;
+    }
+
+    bool ret = true;
+    ConFileCmd cmd = { 0 };
+    for(;;) {
+        e = con_file_next_cmd(cf, &cmd);
+        if(e == CF_CMD_DONE) {
+            break;
+        }
+        if(e == CF_CMD_EMPTY) {
+            continue;
+        }
+        if(e != CF_SUCCESS) {
+            ret = false;
+            break;
+        }
+        // todo
+    }
+    
+    if(!ret) {
+        con_file_print_cmd_error(e, path, con_file_line_num(cf));
+    }
+
+    con_file_free(cf);
+    return ret;
+}
+
 int open_cmd(const char* path, Verbose v) {
     verbose_header(v, "Opening Command");
     int cmd = open(path, O_RDONLY | O_CLOEXEC);
@@ -289,17 +325,9 @@ int main(int argc, char **argv) {
     }
 
     if(conf.conf_file != nullptr) {
-        ConFile* cf  = nullptr;
-        verbose_header(v, "Loading Config File");
-
-        ConFileErr e = con_file_new(&cf, conf.conf_file);
-        verbose_line(v, "open", conf.conf_file, e != CF_SUCCESS);
-        if(e != CF_SUCCESS) {
-            con_file_print_new_error(e, conf.conf_file);
+        if(!process_conf(conf.conf_file, v)) {
             return 1;
         }
-
-        con_file_free(cf);
     }
 
     if(conf.bind_cmd) {
