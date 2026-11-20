@@ -14,10 +14,12 @@
 
 
 static uint8_t*   next_line_priv(ConFile *cf);
-static ConFileErr cf_map_errno(int errnum);
+static uint8_t*   eat_white_space(uint8_t* str);
+static uint8_t*   eat_non_white_space(uint8_t* str);
+
 static bool       map_kind(const uint8_t* kind, ConFileKind* out);
 
-static bool       is_comment(uint8_t* str);
+static ConFileErr cf_map_errno(int errnum);
 static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 
 #define Q_UNOPENED 0     // missing opening `"`
@@ -117,27 +119,33 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     if(ln[0] == '\0') {
         return CF_CMD_EMPTY;
     }
+
+    // Eat all white space at the start of the line.
+    uint8_t* pos = eat_white_space(ln);
     // Line Comment
-    if(is_comment(ln)) {
+    if(*pos == '#' || *pos == '\0') {
         return CF_CMD_EMPTY;
     }
 
-    uint8_t* kind = ln;
+    uint8_t* kind = pos;
     uint8_t* dst  = nullptr;
     uint8_t* src  = nullptr;
 
-    uint8_t* pos  = ln;
-    // Find the first space or end of str
-    while(*pos != '\0' && *pos != ' ') {
-        pos += 1;
+    // Eat all non ws code points.
+    pos = eat_non_white_space(pos);
+    // Pos did not advance the must be empty
+    if(kind == pos) {
+        return CF_CMD_EMPTY;
     }
-    // A space must exist before <dst>.
-    if(*pos != ' ') {
+
+    uint8_t* nxt = eat_white_space(pos);
+    // A white space must exist before <dst>.
+    if(nxt == pos) {
         return CF_CMD_DST_NO_SP;
     }
     // Overwrite the space with '\0' to make a new string for <kind>
     *pos = '\0';
-    pos += 1;
+    pos = nxt;
 
     dst = pos;
     uint8_t ret = parse_quote_str(pos, &pos);
@@ -146,11 +154,12 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
     cmd_out->dst = dst;
 
-    // A space must exist before <src>
-    if(*pos != ' ') {
+    nxt = eat_white_space(pos);
+    // A white space must exist before <src>.
+    if(nxt == pos) {
         return CF_CMD_SRC_NO_SP;
     }
-    pos += 1;
+    pos = nxt;
 
     src = pos;
     ret = parse_quote_str(pos, &pos);
@@ -159,8 +168,9 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
     cmd_out->src = src;
 
+    pos = eat_white_space(pos);
     // No extra data after closing quote of <src>.
-    if(*pos != '\0') {
+    if(*pos != '\0' && *pos != '#') {
         return CF_CMD_TRAILING;
     }
 
@@ -299,6 +309,18 @@ static bool is_white_space(uint32_t code_point) {
     return false;
 }
 
+static uint8_t* eat_non_white_space(uint8_t* str) {
+    while(*str != '\0') {
+        const uint8_t* nxt = str;
+        uint32_t cpt = utf8_next_padded_unchecked(&nxt);
+        if(is_white_space(cpt)) {
+            break;
+        }
+        str = (uint8_t*)nxt;
+    }
+    return str;
+}
+
 static uint8_t* eat_white_space(uint8_t* str) {
     for(;;) {
         const uint8_t* nxt = str;
@@ -309,11 +331,6 @@ static uint8_t* eat_white_space(uint8_t* str) {
         str = (uint8_t*)nxt;
     }
     return str;
-}
-
-static bool is_comment(uint8_t* str) {
-    str = eat_white_space(str);
-    return *str == '#';
 }
 
 static uint8_t* next_line_priv(ConFile *cf) {
