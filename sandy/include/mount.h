@@ -7,8 +7,8 @@
 #include "verbose.h"
 
 typedef struct path_ctx_s {
-    const uint8_t* host_path;
-    const uint8_t* env_path;
+    const uint8_t* host_src;
+    const uint8_t* env_dst;
     uint8_t*       buff;
     size_t         buff_cap;
     int            mount_fd;

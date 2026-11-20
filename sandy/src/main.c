@@ -302,8 +302,8 @@ int main(int argc, char **argv) {
     if(conf.dirs_cnt > 0) {
         verbose_header(v, "Mounting User Directories");
         for (size_t i = 0; i < conf.dirs_cnt; i++) {
-            ctx.host_path = (const uint8_t*)conf.dirs[i].host;
-            ctx.env_path  = (const uint8_t*)conf.dirs[i].target;
+            ctx.host_src = (const uint8_t*)conf.dirs[i].host;
+            ctx.env_dst  = (const uint8_t*)conf.dirs[i].target;
 
             MountErr e = bind_dir(&ctx, v, conf.dirs[i].read_only);
             verbose_mnt_action(&ctx, v, e, "mount");
@@ -318,8 +318,8 @@ int main(int argc, char **argv) {
     if(conf.files_cnt > 0) {
         verbose_header(v, "Mounting User Files");
         for (size_t i = 0; i < conf.files_cnt; i++) {
-            ctx.host_path = (const uint8_t*)conf.files[i].host;
-            ctx.env_path  = (const uint8_t*)conf.files[i].target;
+            ctx.host_src = (const uint8_t*)conf.files[i].host;
+            ctx.env_dst  = (const uint8_t*)conf.files[i].target;
 
             MountErr e = bind_file(&ctx, v, conf.files[i].read_only);
             verbose_mnt_action(&ctx, v, e, "mount");
@@ -340,8 +340,8 @@ int main(int argc, char **argv) {
     if(conf.bind_cmd) {
         verbose_header(v, "Binding Command");
         char* cmd = argv[conf.cmd_idx];
-        ctx.host_path = (const uint8_t*)cmd;
-        ctx.env_path  = (const uint8_t*)cmd;
+        ctx.host_src = (const uint8_t*)cmd;
+        ctx.env_dst  = (const uint8_t*)cmd;
         MountErr e = bind_file(&ctx, v, false);
         verbose_mnt_action(&ctx, v, e, "mount");
         if(e != M_SUCCESS) {

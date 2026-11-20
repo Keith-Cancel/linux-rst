@@ -105,8 +105,8 @@ bool setup_devices(int mnt, Verbose v) {
     for(unsigned i = 0; i < 5; i++) {
         const char* dev = devs[i];
 
-        ctx.env_path  = (const uint8_t*)dev;
-        ctx.host_path = (const uint8_t*)dev;
+        ctx.env_dst  = (const uint8_t*)dev;
+        ctx.host_src = (const uint8_t*)dev;
 
         MountErr e = bind_dev(&ctx, v);
         verbose_mnt_action(&ctx, v, e, "mount");
@@ -116,8 +116,8 @@ bool setup_devices(int mnt, Verbose v) {
         }
     }
 
-    ctx.env_path  = (const uint8_t*)"/dev/tty";
-    ctx.host_path = (const uint8_t*)"/dev/tty";
+    ctx.env_dst  = (const uint8_t*)"/dev/tty";
+    ctx.host_src = (const uint8_t*)"/dev/tty";
 
     MountErr e = bind_dev(&ctx, v);
     verbose_mnt_action(&ctx, v, e, "mount");
@@ -167,8 +167,8 @@ bool setup_libs(int mnt, Verbose v) {
     while(*lib != nullptr) {
         const char* cur = *lib;
 
-        ctx.env_path  = (const uint8_t*)cur;
-        ctx.host_path = (const uint8_t*)cur;
+        ctx.env_dst  = (const uint8_t*)cur;
+        ctx.host_src = (const uint8_t*)cur;
 
         MountErr e = bind_file(&ctx, v, true);
         verbose_mnt_action(&ctx, v, e, "mount");
@@ -181,13 +181,13 @@ bool setup_libs(int mnt, Verbose v) {
 
     const char *(*lnk)[2] = links;
     while((*lnk)[0] != nullptr) {
-        ctx.env_path  = (const uint8_t*)((*lnk)[0]);
-        ctx.host_path = (const uint8_t*)((*lnk)[1]);
+        ctx.env_dst  = (const uint8_t*)((*lnk)[0]);
+        ctx.host_src = (const uint8_t*)((*lnk)[1]);
 
         MountErr e = make_symlink(&ctx, v);
         verbose_mnt_action(&ctx, v, e, "link");
         if(e != M_SUCCESS) {
-            ctx.host_path = (const uint8_t*)"";
+            ctx.host_src = (const uint8_t*)"";
             print_mount_error(&ctx, e);
             return false;
         }
@@ -317,7 +317,7 @@ MountErr make_symlink(PathCtx* ctx, Verbose verbose) {
     int mnt = ctx->mount_fd;
 
     uint8_t buff[PATH_MAX];
-    MountErr ret = prep_env_path(ctx->env_path, buff, PATH_MAX);
+    MountErr ret = prep_env_path(ctx->env_dst, buff, PATH_MAX);
     if(ret != M_SUCCESS) {
         return ret;
     }
@@ -327,7 +327,7 @@ MountErr make_symlink(PathCtx* ctx, Verbose verbose) {
         return ret;
     }
 
-    int chk = symlinkat((const char*)ctx->host_path, mnt, (const char*)buff);
+    int chk = symlinkat((const char*)ctx->host_src, mnt, (const char*)buff);
     int err = errno;
     if(chk >= 0) {
         return M_SUCCESS;
@@ -349,7 +349,7 @@ MountErr make_symlink(PathCtx* ctx, Verbose verbose) {
         case EROFS:
             return M_ENV_PATH_READ_ONLY;
         default:
-            verbose_line(verbose, "symlinkat", (const char*)ctx->env_path, V_FAIL);
+            verbose_line(verbose, "symlinkat", (const char*)ctx->env_dst, V_FAIL);
             D_WARN("A system error occurred for symlinkat() for an environment path.", err);
             return M_ENV_PATH_SYS_ERR;
     }
@@ -389,7 +389,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for mount_setattr() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -399,7 +399,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -445,7 +445,7 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for mount_setattr() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -454,7 +454,7 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -500,7 +500,7 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_attr", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_attr", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for mount_setattr() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -509,7 +509,7 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
     if(res < 0) {
         int err = errno;
         close(host);
-        verbose_line(verbose, "mount_mov", (const char*)ctx->host_path, V_FAIL);
+        verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
     }
@@ -518,8 +518,8 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
 }
 
 void print_mount_error(PathCtx* ctx, MountErr error) {
-    const char* env = ctx->env_path  ? (const char*)ctx->env_path : "(nullptr)";
-    const char* hst = ctx->host_path ? (const char*)ctx->host_path : "(nullptr)";
+    const char* env = ctx->env_dst  ? (const char*)ctx->env_dst : "(nullptr)";
+    const char* hst = ctx->host_src ? (const char*)ctx->host_src : "(nullptr)";
 
     char buff[513] = { 0 };
     const char* out = buff;
@@ -603,9 +603,9 @@ void verbose_mnt_action(PathCtx* ctx, Verbose verbose, MountErr err, const char*
         return;
     }
     char buff[PATH_MAX + 1];
-    snprintf(buff, PATH_MAX, "host: %s", ctx->host_path);
+    snprintf(buff, PATH_MAX, "host: %s", ctx->host_src);
     verbose_line(verbose, action, buff, err != M_SUCCESS);
-    snprintf(buff, PATH_MAX, "env:  %s", ctx->env_path);
+    snprintf(buff, PATH_MAX, "env:  %s", ctx->env_dst);
     verbose_line(verbose, "", buff, V_NONE);
 }
 
@@ -752,11 +752,11 @@ static MountErr check_host_path(const uint8_t* path) {
 }
 
 static MountErr prep_and_check_paths(PathCtx* ctx) {
-    MountErr ret = check_host_path(ctx->host_path);
+    MountErr ret = check_host_path(ctx->host_src);
     if(ret != M_SUCCESS) {
         return ret;
     }
-    return prep_env_path(ctx->env_path, ctx->buff, ctx->buff_cap);
+    return prep_env_path(ctx->env_dst, ctx->buff, ctx->buff_cap);
 }
 
 static bool fd_is_dev(int fd) {
@@ -795,7 +795,7 @@ static bool is_dirat(int dirfd, const uint8_t *path) {
 }
 
 static MountErr open_host_tree(PathCtx* ctx, unsigned flags, int* fd_out) {
-    int fd = open_tree(AT_FDCWD, (const char*)(ctx->host_path), flags | OPEN_TREE_CLOEXEC);
+    int fd = open_tree(AT_FDCWD, (const char*)(ctx->host_src), flags | OPEN_TREE_CLOEXEC);
     if(fd >= 0) {
         *fd_out = fd;
         return M_SUCCESS;
