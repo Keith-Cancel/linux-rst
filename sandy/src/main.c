@@ -183,7 +183,7 @@ bool process_args(int argc, char** argv, Config* conf) {
     return true;
 }
 
-bool process_conf(const char* path, Verbose v) {
+bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
     ConFile* cf  = nullptr;
     verbose_header(v, "Loading Config File");
 
@@ -194,36 +194,63 @@ bool process_conf(const char* path, Verbose v) {
         return false;
     }
 
-    bool ret = true;
+    MountErr   me = M_SUCCESS;
     ConFileCmd cmd = { 0 };
-    while(ret) {
-        e = con_file_next_cmd(cf, &cmd);
+    for(;;) {
+        me = M_SUCCESS;
+        e  = con_file_next_cmd(cf, &cmd);
         if(e == CF_CMD_DONE) {
+            e = CF_SUCCESS;
             break;
         }
         if(e == CF_CMD_EMPTY) {
+            e = CF_SUCCESS;
             continue;
         }
         if(e != CF_SUCCESS) {
-            ret = false;
             break;
         }
+
+        ctx->host_src = cmd.src;
+        ctx->env_dst  = cmd.dst;
         switch(cmd.kind) {
             case CF_K_LINK:
+                me = make_symlink(ctx, v);
+                verbose_mnt_action(ctx, v, me, "link");
+                break;
+            case CF_K_BINDF:
+                me = bind_file(ctx, v, true);
+                verbose_mnt_action(ctx, v, me, "mount");
+                break;
+            case CF_K_BINDF_RW:
+                me = bind_file(ctx, v, false);
+                verbose_mnt_action(ctx, v, me, "mount");
+                break;
+            case CF_K_BINDD:
+                me = bind_file(ctx, v, true);
+                verbose_mnt_action(ctx, v, me, "mount");
+                break;
+            case CF_K_BINDD_RW:
+                me = bind_file(ctx, v, false);
+                verbose_mnt_action(ctx, v, me, "mount");
                 break;
             default:
                 e = CF_CMD_KIND_UNKNOWN;
-                ret = false;
                 break;
         }
     }
-    
-    if(!ret) {
-        con_file_print_cmd_error(e, path, con_file_line_num(cf));
-    }
 
     con_file_free(cf);
-    return ret;
+    if(me != M_SUCCESS) {
+        print_mount_error(ctx, me);
+        return false;
+    }
+    
+    if(e != CF_SUCCESS) {
+        con_file_print_cmd_error(e, path, con_file_line_num(cf));
+        return false;
+    }
+    return true;
 }
 
 int open_cmd(const char* path, Verbose v) {
@@ -332,7 +359,7 @@ int main(int argc, char **argv) {
     }
 
     if(conf.conf_file != nullptr) {
-        if(!process_conf(conf.conf_file, v)) {
+        if(!process_conf(conf.conf_file, &ctx, v)) {
             return 1;
         }
     }
