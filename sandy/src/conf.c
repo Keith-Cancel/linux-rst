@@ -15,6 +15,7 @@ static uint8_t*   next_line_priv(ConFile *cf);
 static ConFileErr cf_map_errno(int errnum);
 static bool       map_kind(const uint8_t* kind, ConFileKind* out);
 
+static inline size_t utf8_step_len(uint8_t prefix_byte);
 static size_t  line_term_len(const uint8_t* str);
 static uint8_t parse_quote_str(uint8_t* str, uint8_t** after);
 
@@ -62,8 +63,8 @@ ConFileErr con_file_new(ConFile** new_file, const char* path) {
         close(fd);
         return CF_NO_MEM;
     }
-    memset((cf-> data + cf->sz)) + 4;
-    cf->data[cf->size] = '\0';
+    // Zero the over allocation
+    memset((cf-> data + cf->size), 0, 4);
 
     size_t   rem = cf->size;
     bool     eof = false;
@@ -266,7 +267,7 @@ static uint8_t* next_line_priv(ConFile *cf) {
         if(len != 0) {
             break;
         }
-        pos += 1;
+        pos += utf8_step_len(*pos);
     }
 
     if(len == 0) {
@@ -327,6 +328,15 @@ static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
         r += 1;
         w += 1;
     }
+}
+
+static inline size_t utf8_step_len(uint8_t prefix_byte) {
+    static const uint8_t lengths[16] = { 
+        1, 1, 1, 1, 1, 1, 1, 1, // ASCII Range
+        1, 1, 1, 1,             // Continuation byte (also set to 1) so we always at least make progress.
+        2, 2, 3, 4
+    };
+    return lengths[prefix_byte >> 4];
 }
 
 static const uint8_t NL_FIRST[256] = {
@@ -441,10 +451,19 @@ static const uint8_t WS_FIRST[256] = {
 // U+3000:          IDEOGRAPHIC SPACE
 // U+FEFF:          ZERO WIDTH NO-BREAK SPACE
 static size_t ws_len(const uint8_t* str) {
-    size_t fir = WS_FIRST[str[0]];
-    if(fir <= 1) {
-        return fir;
+    uint8_t b0 = str[0];
+    size_t len = utf8_step_len(b0);
+    if(len < 2) {
+        // 0x9 to 0xd or 0x20
+        return ((b0 - 0x9) < 5) | (b0 == 0x20);
     }
+
+    //size_t fir = WS_FIRST[str[0]];
+    //if(fir <= 1) {
+    //    return fir;
+    //}
+    //size_t len = fir >> 6;
+    //size_t idx = fir & 0x3f;
 
 
     return 0;
