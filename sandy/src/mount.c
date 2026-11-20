@@ -22,7 +22,7 @@ static bool enter_namespace(void);
 
 static MountErr open_host_tree       (PathCtx* ctx, unsigned flags, int* fd_out);
 static MountErr mkdir_env            (int mnt, const uint8_t* path, mode_t mode, Verbose v);
-static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose verbose);
+static MountErr mkfile_env           (int mnt, const uint8_t* path, mode_t mode, Verbose v, int* fd_out);
 static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
 static MountErr prep_and_check_paths (PathCtx* ctx);
 static MountErr prep_env_path        (const uint8_t* path, uint8_t buff[], size_t blen);
@@ -366,7 +366,7 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
         return ret;
     }
 
-    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose);
+    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose, nullptr);
     if(ret != M_SUCCESS) {
         return ret;
     }
@@ -473,7 +473,7 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
         return ret;
     }
 
-    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose);
+    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose, nullptr);
     if(ret != M_SUCCESS) {
         return ret;
     }
@@ -855,10 +855,14 @@ static MountErr mkdir_env(int mnt, const uint8_t* path, mode_t mode, Verbose v) 
     }
 }
 
-static MountErr mkfile_env(int mnt, const uint8_t* path, mode_t mode, Verbose v) {
+static MountErr mkfile_env(int mnt, const uint8_t* path, mode_t mode, Verbose v, int* fd_out) {
     int res = openat(mnt, (const char*)path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , mode);
     if(res >= 0) {
-        close(res);
+        if(fd_out != nullptr) {
+            *fd_out = res;
+        } else {
+            close(res);
+        }
         verbose_line(v, "mkfile_env", (const char*)path, V_OK);
         return M_SUCCESS;
     }
