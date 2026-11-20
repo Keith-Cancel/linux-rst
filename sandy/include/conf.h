@@ -46,11 +46,13 @@ typedef enum : uint32_t {
     CF_CMD_DST_UNCLOSED = CF_E_CMD_S(1, 1), // The line's <dst> is missing a closing `"`
     CF_CMD_DST_BAD_ESC  = CF_E_CMD_S(1, 2), // The line's <src> has a bad or unrecognized escape.
     CF_CMD_DST_NO_SP    = CF_E_CMD_S(1, 3), // The is no space character before the <src>
+    CF_CMD_DST_MISSING  = CF_E_CMD_S(1, 4), // There is no source
     
     CF_CMD_SRC_UNOPENED = CF_E_CMD_S(2, 0), // The line's <src> is missing an opening `"`
     CF_CMD_SRC_UNCLOSED = CF_E_CMD_S(2, 1), // The line's <src> is missing a closing `"`
     CF_CMD_SRC_BAD_ESC  = CF_E_CMD_S(2, 2), // The line's <src> has a bad or unrecognized escape.
     CF_CMD_SRC_NO_SP    = CF_E_CMD_S(2, 3), // The is no space character before the <src>
+    CF_CMD_SRC_MISSING  = CF_E_CMD_S(2, 4), // There is no source
 } ConFileErr;
 
 typedef struct env_cmd_s {

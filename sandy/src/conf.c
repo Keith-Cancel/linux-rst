@@ -145,6 +145,9 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
 
     uint8_t* nxt = eat_white_space(pos);
+    if(*nxt == '\0') {
+        return CF_CMD_DST_MISSING;
+    }
     // A white space must exist before <dst>.
     if(nxt == pos) {
         return CF_CMD_DST_NO_SP;
@@ -161,6 +164,9 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     cmd_out->dst = dst;
 
     nxt = eat_white_space(pos);
+    if(*nxt == '\0') {
+        return CF_CMD_SRC_MISSING;
+    }
     // A white space must exist before <src>.
     if(nxt == pos) {
         return CF_CMD_SRC_NO_SP;
@@ -263,6 +269,7 @@ void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
         case CF_CMD_KIND_UNKNOWN:
             msg = "Unrecognized command or operation";
             break;
+
         case CF_CMD_DST_UNOPENED:
             msg = "The command's destination has no opening '\"'";
             break;
@@ -275,6 +282,10 @@ void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
         case CF_CMD_DST_NO_SP:
             msg = "The command's has no white space before the destination";
             break;
+        case CF_CMD_DST_MISSING:
+            msg = "The command has no destination argument";
+            break;
+
         case CF_CMD_SRC_UNOPENED:
             msg = "The command's source has no opening '\"'";
             break;
@@ -286,6 +297,9 @@ void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
             break;
         case CF_CMD_SRC_NO_SP:
             msg = "The command's has no white space before the source";
+            break;
+        case CF_CMD_SRC_MISSING:
+            msg = "The command has no source argument";
             break;
         default:
             D_ERROR("Unknown command error value");
