@@ -399,3 +399,54 @@ static size_t line_term_len(const uint8_t* str) {
 }
 */
 
+#define LEN_IDX(len, idx) ((len) << 6) | (idx)
+
+static const uint8_t WS_FIRST[256] = {
+    [0x09] = 1,  // Tab
+    [0x0a] = 1,  // Line feed
+    [0x0b] = 1,  // Line Tabulation
+    [0x0c] = 1,  // Form feed
+    [0x0d] = 1,  // Carriage return
+    [0x20] = 1,  // Space
+    [0xc2] = LEN_IDX(2, 2), // U+A0 and U+85
+    [0xe1] = LEN_IDX(3, 3), // U+1680
+    [0xe2] = LEN_IDX(3, 4), // WS between U+2000 and U+205F
+    [0xe3] = LEN_IDX(3, 5), // U+3000
+    [0xef] = LEN_IDX(3, 6), // U+FEFF
+};
+
+// Get how long a white space code point is.
+// Will not read past a null byte.
+// Returns:
+//    0 : Not white space
+//    1 : Length one white space
+//    2 : Length two white space
+//    3 : Length three white space
+// White space codes points checked:
+// U+09:   Tab
+// U+0A:   LINE FEED
+// U+0B:   Line Tabulation
+// U+0C:   FORM FEED
+// U+0D:   CARRIAGE RETURN
+// U+20:   Space
+//
+// U+85:            NEXT LINE
+// U+A0:            NO-BREAK SPACE
+// U+1680:          OGHAM SPACE MARK
+// U+[2000..=200A]: EN QUAD to HAIR SPACE e2 80
+// U+2028:          LINE SEPARATOR
+// U+2029:          PARAGRAPH SEPARATOR
+// U+202F:          NARROW NO-BREAK SPACE     
+// U+205F:          MEDIUM MATHEMATICAL SPACE e2 81
+// U+3000:          IDEOGRAPHIC SPACE
+// U+FEFF:          ZERO WIDTH NO-BREAK SPACE
+static size_t ws_len(const uint8_t* str) {
+    size_t fir = WS_FIRST[str[0]];
+    if(fir <= 1) {
+        return fir;
+    }
+
+
+    return 0;
+}
+
