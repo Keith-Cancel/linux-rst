@@ -17,9 +17,8 @@ static uint8_t*   next_line_priv(ConFile *cf);
 static ConFileErr cf_map_errno(int errnum);
 static bool       map_kind(const uint8_t* kind, ConFileKind* out);
 
-static inline size_t utf8_step_len(uint8_t prefix_byte);
-static size_t  line_term_len(const uint8_t* str);
-static uint8_t parse_quote_str(uint8_t* str, uint8_t** after);
+static bool       is_comment(uint8_t* str);
+static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 
 #define Q_UNOPENED 0     // missing opening `"`
 #define Q_UNCLOSED 1     // missing a closing `"`
@@ -119,7 +118,7 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
         return CF_CMD_EMPTY;
     }
     // Line Comment
-    if(ln[0] == '#') {
+    if(is_comment(ln)) {
         return CF_CMD_EMPTY;
     }
 
@@ -264,6 +263,59 @@ static bool is_line_term(uint32_t code_point) {
     return false;
 }
 
+static const uint16_t other_ws[] = {
+    0xA0,   // NO-BREAK SPACE
+    0x85,   // NEXT LINE
+    0x1680, // OGHAM SPACE MARK
+    0x2028, // LINE SEPARATOR
+    0x2029, // PARAGRAPH SEPARATOR
+    0x202F, // NARROW NO-BREAK SPACE
+    0x205F, // MEDIUM MATHEMATICAL SPACE
+    0x3000, // IDEOGRAPHIC SPACE
+    0xFEFF, // ZERO WIDTH NO-BREAK SPACE
+};
+
+static bool is_white_space(uint32_t code_point) {
+    // Checks for:
+    // 0x20: Space
+    // 0x09: Tab
+    // 0x0A: LINE FEED
+    // 0x0B: Line Tabulation
+    // 0x0C: FORM FEED
+    // 0x0D: CARRIAGE RETURN
+    if((code_point == 0x20) || (code_point >= 0x09 && code_point <= 0x0D)) {
+        return true;
+    }
+    // Covers Characters EN QUAD to HAIR SPACE
+    if(code_point >= 0x2000 && code_point <= 0x200A) {
+        return true;
+    }
+    for(uint8_t i = 0; i < sizeof(other_ws)/sizeof(uint16_t); i++) {
+        uint32_t cur = other_ws[i];
+        if(code_point == cur) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static uint8_t* eat_white_space(uint8_t* str) {
+    while(*str != '\0') {
+        const uint8_t* nxt = str;
+        uint32_t cpt = utf8_next_padded_unchecked(&nxt);
+        if(!is_white_space(cpt)) {
+            break;
+        }
+        str = (uint8_t*)nxt;
+    }
+    return str;
+}
+
+static bool is_comment(uint8_t* str) {
+    str = eat_white_space(str);
+    return *str == '#';
+}
+
 static uint8_t* next_line_priv(ConFile *cf) {
     uint8_t* dat = cf->data;
     size_t   cur = cf->cursor;
@@ -279,14 +331,14 @@ static uint8_t* next_line_priv(ConFile *cf) {
     uint8_t* end = dat + sz;
 
     while(pos < end) {
-        uint8_t* nxt = pos;
-        uint32_t cpt = utf8_next_padded_unchecked((const uint8_t**)&nxt);
+        const uint8_t* nxt = pos;
+        uint32_t cpt = utf8_next_padded_unchecked(&nxt);
         if(is_line_term(cpt)) {
             nxt += (cpt == 0x0D && (*nxt) == 0x0A);
             len = nxt - pos;
             break;
         }
-        pos = nxt;
+        pos = (uint8_t*)nxt;
     }
 
     if(len == 0) {
@@ -348,86 +400,3 @@ static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
         w += 1;
     }
 }
-
-static inline size_t utf8_step_len(uint8_t prefix_byte) {
-    static const uint8_t lengths[16] = { 
-        1, 1, 1, 1, 1, 1, 1, 1, // ASCII Range
-        1, 1, 1, 1,             // Continuation byte (also set to 1) so we always at least make progress.
-        2, 2, 3, 4
-    };
-    return lengths[prefix_byte >> 4];
-}
-
-// 0xC0 is the smallest prefix byte
-// So subtract 0xC0 to make the table smaller.
-static const uint8_t WS_PREFIX_BYTE[64] = {
-    [0xc2 - 0xc0] = 1, // U+A0 and U+85
-    [0xe1 - 0xc0] = 2, // U+1680
-    [0xe2 - 0xc0] = 3, // WS between U+2000 and U+205F
-    [0xe3 - 0xc0] = 4, // U+3000
-    [0xef - 0xc0] = 5, // U+FEFF
-};
-
-// Get how long a white space code point is.
-// Will not read past a null byte.
-// Returns:
-//    0 : Not white space
-//    1 : Length one white space
-//    2 : Length two white space
-//    3 : Length three white space
-// White space codes points checked:
-// U+09:   Tab
-// U+0A:   LINE FEED
-// U+0B:   Line Tabulation
-// U+0C:   FORM FEED
-// U+0D:   CARRIAGE RETURN
-// U+20:   Space
-//
-// U+85:            NEXT LINE
-// U+A0:            NO-BREAK SPACE
-// U+1680:          OGHAM SPACE MARK
-// U+[2000..=200A]: EN QUAD to HAIR SPACE e2 80
-// U+2028:          LINE SEPARATOR
-// U+2029:          PARAGRAPH SEPARATOR
-// U+202F:          NARROW NO-BREAK SPACE     
-// U+205F:          MEDIUM MATHEMATICAL SPACE e2 81
-// U+3000:          IDEOGRAPHIC SPACE
-// U+FEFF:          ZERO WIDTH NO-BREAK SPACE
-static size_t ws_len(const uint8_t* str) {
-    uint8_t b0 = str[0];
-    size_t len = utf8_step_len(b0);
-    if(len < 2) {
-        // 0x09 - Tab
-        // 0x0a - Line feed
-        // 0x0b - Line Tabulation
-        // 0x0c - Form feed
-        // 0x0d - Carriage return
-        // 0x20 - Space
-        return ((b0 - 0x9) < 5) | (b0 == 0x20);
-    }
-    uint8_t b1 = str[1];
-    if((len > 3) || (b1 < 0x80) || b1 > 0xbf) {
-        return 0;
-    }
-
-    uint32_t cpt = b0 & (0xff >> len);
-    cpt <<= 6;
-    cpt  |= b0 & 0x3f;
-
-
-    if(len == 3) {
-        uint8_t b2 = str[2];
-
-
-    }
-
-
-    uint8_t pre = WS_PREFIX_BYTE[b0 - 0xc0];
-    if(pre < 1) {
-        return 0;
-    }
-
-
-    return 0;
-}
-
