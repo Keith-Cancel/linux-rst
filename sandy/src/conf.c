@@ -409,20 +409,14 @@ static size_t line_term_len(const uint8_t* str) {
 }
 */
 
-#define LEN_IDX(len, idx) ((len) << 6) | (idx)
-
-static const uint8_t WS_FIRST[256] = {
-    [0x09] = 1,  // Tab
-    [0x0a] = 1,  // Line feed
-    [0x0b] = 1,  // Line Tabulation
-    [0x0c] = 1,  // Form feed
-    [0x0d] = 1,  // Carriage return
-    [0x20] = 1,  // Space
-    [0xc2] = LEN_IDX(2, 2), // U+A0 and U+85
-    [0xe1] = LEN_IDX(3, 3), // U+1680
-    [0xe2] = LEN_IDX(3, 4), // WS between U+2000 and U+205F
-    [0xe3] = LEN_IDX(3, 5), // U+3000
-    [0xef] = LEN_IDX(3, 6), // U+FEFF
+// 0xC0 is the smallest prefix byte
+// So subtract 0xC0 to make the table smaller.
+static const uint8_t WS_PREFIX_BYTE[64] = {
+    [0xc2 - 0xc0] = 1, // U+A0 and U+85
+    [0xe1 - 0xc0] = 2, // U+1680
+    [0xe2 - 0xc0] = 3, // WS between U+2000 and U+205F
+    [0xe3 - 0xc0] = 4, // U+3000
+    [0xef - 0xc0] = 5, // U+FEFF
 };
 
 // Get how long a white space code point is.
@@ -454,18 +448,48 @@ static size_t ws_len(const uint8_t* str) {
     uint8_t b0 = str[0];
     size_t len = utf8_step_len(b0);
     if(len < 2) {
-        // 0x9 to 0xd or 0x20
+        // 0x09 - Tab
+        // 0x0a - Line feed
+        // 0x0b - Line Tabulation
+        // 0x0c - Form feed
+        // 0x0d - Carriage return
+        // 0x20 - Space
         return ((b0 - 0x9) < 5) | (b0 == 0x20);
     }
+    uint8_t b1 = str[1];
+    if((len > 3) || (b1 < 0x80) || b1 > 0xbf) {
+        return 0;
+    }
 
-    //size_t fir = WS_FIRST[str[0]];
-    //if(fir <= 1) {
-    //    return fir;
-    //}
-    //size_t len = fir >> 6;
-    //size_t idx = fir & 0x3f;
+    uint32_t cpt = b0 & (0xff >> len);
+    cpt <<= 6;
+    cpt  |= b0 & 0x3f;
+
+
+    if(len == 3) {
+        uint8_t b2 = str[2];
+
+
+    }
+
+
+    uint8_t pre = WS_PREFIX_BYTE[b0 - 0xc0];
+    if(pre < 1) {
+        return 0;
+    }
 
 
     return 0;
 }
 
+
+static inline uint32_t utf8_decode_unchecked(const uint8_t* data, unsigned len) {
+    uint32_t cpt = data[0] & (0x8fU >> len); // Mask prefix bits
+    unsigned shf = 6 * (4 - len); // Final Shift amount.
+    cpt <<= 18;
+    cpt |= (((uint32_t)data[1]) & 0x3fU) << 12;
+    cpt |= (((uint32_t)data[2]) & 0x3fU) << 6;
+    cpt |= (((uint32_t)data[3]) & 0x3fU);
+    cpt >>= shf;
+    return cpt;
+}
