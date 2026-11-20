@@ -231,11 +231,11 @@ bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
                 verbose_mnt_action(ctx, v, me, "mount");
                 break;
             case CF_K_BINDD:
-                me = bind_file(ctx, v, true);
+                me = bind_dir(ctx, v, true);
                 verbose_mnt_action(ctx, v, me, "mount");
                 break;
             case CF_K_BINDD_RW:
-                me = bind_file(ctx, v, false);
+                me = bind_dir(ctx, v, false);
                 verbose_mnt_action(ctx, v, me, "mount");
                 break;
             default:
