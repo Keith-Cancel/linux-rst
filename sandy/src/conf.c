@@ -405,6 +405,12 @@ static uint8_t parse_quote_str(uint8_t* str, uint8_t** after) {
                 case 'n':
                     c = '\n';
                     break;
+                case 't':
+                    c = '\t';
+                    break;
+                case 'r':
+                    c = '\r';
+                    break;
                 case '\0':
                     return Q_UNCLOSED;
                 default:
