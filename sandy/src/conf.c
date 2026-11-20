@@ -173,10 +173,15 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     }
     pos = nxt;
 
-    src = pos;
-    ret = parse_quote_str(pos, &pos);
-    if(ret != Q_SUCCESS) {
-        return CF_E_CMD_S(2, ret);
+    if(*pos == '%' && pos[1] == '0') {
+        src = dst;
+        pos += 2;
+    } else {
+        src = pos;
+        ret = parse_quote_str(pos, &pos);
+        if(ret != Q_SUCCESS) {
+            return CF_E_CMD_S(2, ret);
+        }
     }
     cmd_out->src = src;
 
