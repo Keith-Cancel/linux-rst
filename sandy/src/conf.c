@@ -10,6 +10,7 @@
 
 #include "conf.h"
 #include "diag.h"
+#include "utf8.h"
 
 
 static uint8_t*   next_line_priv(ConFile *cf);
