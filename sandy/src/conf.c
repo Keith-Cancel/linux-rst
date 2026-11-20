@@ -359,7 +359,7 @@ static uint8_t* next_line_priv(ConFile *cf) {
     }
 
     if(len == 0) {
-        // I over allocate in new by 5 and set it to '\0'.
+        // I over allocate in new by 4 and set it to '\0'.
         // So I just need to update only the cursor.
         cf->cursor = sz;
         return ln;
