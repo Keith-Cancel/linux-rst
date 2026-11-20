@@ -251,6 +251,19 @@ static ConFileErr cf_map_errno(int errnum) {
     }
 }
 
+static bool is_line_term(uint32_t code_point) {
+    switch(code_point) {
+        case 0x0A: 	 // LINE FEED
+        case 0x0D:   // CARRIAGE RETURN
+        case 0x85:   // NEXT LINE
+        case 0x2028: // LINE SEPARATOR
+        case 0x2029: // PARAGRAPH SEPARATOR
+            return true;
+            break;
+    }
+    return false;
+}
+
 static uint8_t* next_line_priv(ConFile *cf) {
     uint8_t* dat = cf->data;
     size_t   cur = cf->cursor;
@@ -264,16 +277,20 @@ static uint8_t* next_line_priv(ConFile *cf) {
     size_t   len = 0;
     uint8_t* pos = ln;
     uint8_t* end = dat + sz;
+
     while(pos < end) {
-        len = line_term_len(pos);
-        if(len != 0) {
+        uint8_t* nxt = pos;
+        uint32_t cpt = utf8_next_padded_unchecked((const uint8_t**)&nxt);
+        if(is_line_term(cpt)) {
+            nxt += (cpt == 0x0D && (*nxt) == 0x0A);
+            len = nxt - pos;
             break;
         }
-        pos += utf8_step_len(*pos);
+        pos = nxt;
     }
 
     if(len == 0) {
-        // I over allocate in new by 1 and set it to '\0'.
+        // I over allocate in new by 5 and set it to '\0'.
         // So I just need to update only the cursor.
         cf->cursor = sz;
         return ln;
@@ -340,76 +357,6 @@ static inline size_t utf8_step_len(uint8_t prefix_byte) {
     };
     return lengths[prefix_byte >> 4];
 }
-
-static const uint8_t NL_FIRST[256] = {
-    [0x0a] = 1, // \n
-    // use the the three bits 5, 6 to store extra data (match fail len and match len)
-    // also uses bit 7 and 4 as part the len.
-    [0x0d] = 0x0a | 0b10 << 5, // \r or \r\n
-    [0xc2] = 0x85 | 0b10 << 5, // U+0085: [0xc2, 0x85]
-    [0xe2] = 0x80 | 0b11 << 5, // U+2028: [0xe2, 0x80, 0xa8] or U+2029: [0xe2, 0x80, 0xa9]
-};
-
-// Get how long a line terminator.
-// Will not read past a null byte.
-// Returns:
-//    0 : No line terminator
-//    1 : Length one line terimators
-//    2 : Length two line terinators
-//    3 : Length three Line Separators
-size_t line_term_len(const uint8_t* str) {
-    uint8_t fir = NL_FIRST[str[0]];
-    if(fir <= 1) {
-        return fir;
-    }
-    // mask the extra data out with 0x9f
-    uint8_t cmp = (fir & 0x9f) == str[1];
-    uint8_t shf = (cmp + cmp) + 3;  // 3 or 5
-    uint8_t sec = (fir >> shf) & 3; // Keep only 2 bits
-    if(sec <= 2) {
-        return sec;
-    }
-
-    // mask last bit for both 0xa8 and 0xa9
-    size_t last = (str[2] & 0xfe) == 0xa8;
-    // Should just become a lea rax, [2 * rax + rax]
-    return (last << 1) + last;
-}
-
-/*
-#if defined(__GNUC__) || defined(__clang__)
-    #define likely(x)   __builtin_expect(!!(x), 1)
-    #define unlikely(x) __builtin_expect(!!(x), 0)
-#else
-    #define likely(x)   (x)
-    #define unlikely(x) (x)
-#endif
-
-
-static size_t line_term_len(const uint8_t* str) {
-    uint8_t fir = str[0];
-    if(likely(fir > 0xf && fir < 0xc2)) {
-        return 0;
-    }
-    if(fir == 0x0a) { // \n
-        return 1;
-    }
-    uint8_t sec = str[1];
-    if(fir == 0x0d) { // \r
-        return 1 + (sec == 0x0a); // if \n after \r it's two.
-    }
-    if(fir == 0xc2) { // U+85
-        return (sec == 0x85) << 1;
-    }
-    if(fir == 0xe2 && sec == 0x80) { // U+2028 and U+2029
-        // mask last bit for both 0xa8 and 0xa9
-        size_t last = (str[2] & 0xfe) == 0xa8;
-        // Should just become a lea rax, [2 * rax + rax]
-        return (last << 1) + last;
-    }
-    return 0;
-}
-*/
 
 // 0xC0 is the smallest prefix byte
 // So subtract 0xC0 to make the table smaller.
