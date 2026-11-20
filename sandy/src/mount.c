@@ -519,6 +519,63 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
 }
 
 
+MountErr copy_file(PathCtx* ctx, Verbose verbose, bool read_only) {
+    MountErr ret = prep_and_check_paths(ctx);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    ret = mkdir_env_parent(ctx->mount_fd, ctx->buff, verbose);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    int dst = -1;
+    ret = mkfile_env(ctx->mount_fd, ctx->buff, 0644, verbose, &dst);
+    if(ret != M_SUCCESS) {
+        return ret;
+    }
+
+    int src = -1;
+    ret = open_host(ctx, O_RDONLY, &src);
+    if(ret != M_SUCCESS) {
+        close(dst);
+        return ret;
+    }
+
+    if(!fd_is_file(src)) {
+        close(src);
+        close(dst);
+        return M_HST_PATH_NOT_FILE;
+    }
+
+    off_t off_in = 0;
+    off_t off_out = 0;
+    for(;;) {
+        ssize_t n = copy_file_range(src, &off_in, dst, &off_out, SSIZE_MAX, 0);
+        if(n < 0) {
+            int err = errno;
+            close(src);
+            close(dst);
+            verbose_line(verbose, "copy_file", (const char*)ctx->host_src, V_FAIL);
+            D_WARN("A system error occurred for copy_file_range().", err);
+            return M_ENV_PATH_SYS_ERR;
+        }
+        if(n == 0) {
+            break;
+        }
+    }
+
+    if(read_only) {
+        if(fchmod(dst, 0444) < 0) {
+            D_WARN("A system error occurred for fchmod().", errno);
+        }
+    }
+
+    close(dst);
+    close(src);
+    return M_SUCCESS;
+}
 
 void print_mount_error(PathCtx* ctx, MountErr error) {
     const char* env = ctx->env_dst  ? (const char*)ctx->env_dst : "(nullptr)";
