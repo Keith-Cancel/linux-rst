@@ -389,10 +389,11 @@ static uint8_t* next_line_priv(ConFile *cf) {
     uint8_t* dat = cf->data;
     size_t   cur = cf->cursor;
     size_t   sz  = cf->size;
-
     if(cur >= sz) {
         return nullptr;
     }
+    // Not done so increment line count.
+    cf->ln_num += 1;
 
     uint8_t* ln  = dat + cur;
     size_t   len = 0;
