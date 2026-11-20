@@ -32,6 +32,30 @@ static inline uint32_t utf8_decode_unchecked(uint32_t utf8, unsigned len) {
 
 #endif
 
+// Always loads 4 bytes, handling byte order.
+static inline uint32_t utf8_load_padded(const uint8_t* data) {
+    uint32_t chunk;
+    memcpy(&chunk, data, 4);
+    #if __STDC_ENDIAN_NATIVE__ == __STDC_ENDIAN_LITTLE__
+        chunk = __builtin_bswap32(chunk);
+    #elif __STDC_ENDIAN_NATIVE__ == __STDC_ENDIAN_BIG__
+    #else
+        #error "Mixed or unsupported endianness"  
+    #endif
+    return chunk;
+}
 
+static inline unsigned utf8_len(uint32_t utf8) {
+    unsigned lz = __builtin_clz(~utf8);
+    return lz + (lz == 0);
+}
+
+static inline uint32_t utf8_next_padded_unchecked(const uint8_t** data) {
+    uint32_t utf8 = utf8_load_padded(*data);
+    unsigned len  = utf8_len(utf8);
+    uint32_t cpt  = utf8_decode_unchecked(utf8, len);
+    *data += len;
+    return cpt;
+}
 
 #endif
