@@ -219,7 +219,7 @@ bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
                 verbose_mnt_action(ctx, v, me, "link");
                 break;
             case CF_K_COPY:
-                me = copy_file(ctx, v, false);
+                me = copy_file(ctx, v, cmd.mode);
                 verbose_mnt_action(ctx, v, me, "copy");
                 break;
             case CF_K_BINDF:

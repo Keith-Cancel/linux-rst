@@ -17,8 +17,7 @@ static uint8_t*   next_line_priv(ConFile *cf);
 static uint8_t*   eat_white_space(uint8_t* str);
 static uint8_t*   eat_non_white_space(uint8_t* str);
 
-static bool       map_kind(const uint8_t* kind, ConFileKind* out);
-
+static ConFileErr map_kind(const uint8_t* kind, ConFileCmd* cmd);
 static ConFileErr cf_map_errno(int errnum);
 static uint8_t    parse_quote_str(uint8_t* str, uint8_t** after);
 
@@ -190,39 +189,109 @@ ConFileErr con_file_next_cmd(ConFile* cf, ConFileCmd* cmd_out) {
     if(*pos != '\0' && *pos != '#') {
         return CF_CMD_TRAILING;
     }
-
-    if(!map_kind(kind, &(cmd_out->kind))) {
-        return CF_CMD_KIND_UNKNOWN;
-    }
-    return CF_SUCCESS;
+    return map_kind(kind, cmd_out);
 }
 
-static bool map_kind(const uint8_t* kind, ConFileKind* out) {
-    if(strcmp((const char*)kind, "link") == 0) {
-        *out = CF_K_LINK;
-        return true;
+static uint8_t lower(uint8_t val) {
+    if(val >= 'A' && val <= 'Z') {
+        val |= 0x20;
     }
-    if(strcmp((const char*)kind, "copy") == 0) {
-        *out = CF_K_COPY;
-        return true;
+    return val;
+}
+
+static bool str_match_start(const uint8_t* str, const char* cmp) {
+    for(;;) {
+        uint8_t c = *cmp;
+        uint8_t s = *str;
+        if(c == '\0') {
+            return true;
+        }
+        if(lower(c) != lower(s)) {
+            return false;
+        }
+        str += 1;
+        cmp += 1;
     }
-    if(strcmp((const char*)kind, "bindf") == 0) {
-        *out = CF_K_BINDF;
-        return true;
+}
+
+static bool str_match(const uint8_t* str, const char* cmp) {
+    for(;;) {
+        uint8_t c = *cmp;
+        uint8_t s = *str;
+        if(lower(c) != lower(s)) {
+            return false;
+        }
+        if(c == '\0') {
+            return true;
+        }
+        str += 1;
+        cmp += 1;
     }
-    if(strcmp((const char*)kind, "bindf_rw") == 0) {
-        *out = CF_K_BINDF_RW;
-        return true;
+}
+
+static bool str_mode(const uint8_t* str, int* mode) {
+    uint8_t own = str[0];
+    if(own < '0' || own > '7') {
+        return false;
     }
-    if(strcmp((const char*)kind, "bindd") == 0) {
-        *out = CF_K_BINDD;
-        return true;
+    uint8_t grp = str[1];
+    if(grp < '0' || grp > '7') {
+        return false;
     }
-    if(strcmp((const char*)kind, "bindd_rw") == 0) {
-        *out = CF_K_BINDD_RW;
-        return true;
+    uint8_t oth = str[2];
+    if(oth < '0' || oth > '7') {
+        return false;
     }
-    return false;
+    if(str[3] != '\0') {
+        return false;
+    }
+    int mod = (oth - '0');
+    mod |= (grp - '0') << 3;
+    mod |= (own - '0') << 6;
+    *mode = mod;
+    return true;
+}
+
+static ConFileErr map_kind(const uint8_t* kind, ConFileCmd* cmd) {
+    if(str_match(kind, "link")) {
+        cmd->kind = CF_K_LINK;
+        return CF_SUCCESS;
+    }
+    if(str_match(kind, "bindf")) {
+        cmd->kind = CF_K_BINDF;
+        return CF_SUCCESS;
+    }
+    if(str_match(kind, "bindf_rw")) {
+        cmd->kind = CF_K_BINDF_RW;
+        return CF_SUCCESS;
+    }
+    if(str_match(kind, "bindd")) {
+        cmd->kind = CF_K_BINDD;
+        return CF_SUCCESS;
+    }
+    if(str_match(kind, "bindd_rw")) {
+        cmd->kind = CF_K_BINDD_RW;
+        return CF_SUCCESS;
+    }
+
+    if(str_match_start(kind, "copy")) {
+        uint8_t c = kind[4];
+        if(c == '\0') {
+            cmd->kind = CF_K_COPY;
+            cmd->mode = 0644;
+            return CF_SUCCESS;
+        }
+        if(c == '_') {
+            int mode = 0;
+            if(!str_mode(kind + 5, &mode)) {
+                return CF_CMD_KIND_PERM;
+            }
+            cmd->kind = CF_K_COPY;
+            cmd->mode = mode;
+            return CF_SUCCESS;
+        }
+    }
+    return CF_CMD_KIND_UNKNOWN;
 }
 
 void con_file_free(ConFile* file) {
@@ -278,6 +347,9 @@ void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
         case CF_CMD_KIND_UNKNOWN:
             msg = "Unrecognized command or operation";
             break;
+        case CF_CMD_KIND_PERM:
+            msg = "Commands permission or mode_t section is malformed or incomplete";
+            break;
 
         case CF_CMD_DST_UNOPENED:
             msg = "The command's destination has no opening '\"'";
@@ -311,6 +383,7 @@ void con_file_print_cmd_error(ConFileErr err, const char* path, size_t ln_num) {
             msg = "The command has no source argument";
             break;
         default:
+            printf("%x\n", err);
             D_ERROR("Unknown command error value");
             break;
     }

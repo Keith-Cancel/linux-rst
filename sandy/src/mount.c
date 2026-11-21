@@ -47,11 +47,11 @@ int setup_mount(Verbose v) {
         return -1;
     }
 
-    int res = fsconfig(fd, FSCONFIG_SET_STRING, "size", "128M", 0);
+    int res = fsconfig(fd, FSCONFIG_SET_STRING, "size", "512M", 0);
     err     = errno;
-    verbose_line(v, "tmpfs size", "128M", res < 0);
+    verbose_line(v, "tmpfs size", "512M", res < 0);
     if(res < 0) {
-        D_ERROR("Failed to set tmpfs option 'size=128M' via fsconfig()", err);
+        D_ERROR("Failed to set tmpfs option 'size=512M' via fsconfig()", err);
         close(fd);
         return -1;
     }
@@ -518,8 +518,47 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
     return M_SUCCESS;
 }
 
+static bool copy_fd(int dst, int src) {
+    uint8_t buff[8192];
+    for(;;) {
+        ssize_t amt = read(src, buff, 8192);
+        if(amt < 0) {
+            if(errno == EINTR) {
+                continue;
+            }
+            D_ERROR("A system error occurred for read(), when copying a file", errno);
+            return false;
+        }
+        if(amt == 0) {
+            break;
+        }
 
-MountErr copy_file(PathCtx* ctx, Verbose verbose, bool read_only) {
+        size_t   rem = amt;
+        unsigned zer = 0;
+        uint8_t* pos = buff;
+        while(rem > 0 && zer < 10) {
+            amt = write(dst, pos, rem);
+            if(amt < 0) {
+                if(errno == EINTR) {
+                    continue;
+                }
+                D_ERROR("A system error occurred for write(), when copying a file", errno);
+                return false;
+            }
+            zer += amt == 0;
+            pos += amt;
+            rem -= amt;
+        }
+
+        if(zer >= 10) {
+            D_ERROR("Failed to write() when copying a file, probably no space left.");
+            return false;
+        }
+    }
+    return true;
+}
+
+MountErr copy_file(PathCtx* ctx, Verbose verbose, int mode) {
     MountErr ret = prep_and_check_paths(ctx);
     if(ret != M_SUCCESS) {
         return ret;
@@ -549,31 +588,20 @@ MountErr copy_file(PathCtx* ctx, Verbose verbose, bool read_only) {
         return M_HST_PATH_NOT_FILE;
     }
 
-    off_t off_in = 0;
-    off_t off_out = 0;
-    for(;;) {
-        ssize_t n = copy_file_range(src, &off_in, dst, &off_out, SSIZE_MAX, 0);
-        if(n < 0) {
-            int err = errno;
-            close(src);
-            close(dst);
-            verbose_line(verbose, "copy_file", (const char*)ctx->host_src, V_FAIL);
-            D_WARN("A system error occurred for copy_file_range().", err);
-            return M_ENV_PATH_SYS_ERR;
-        }
-        if(n == 0) {
-            break;
-        }
+    if(!copy_fd(dst, src)) {
+        close(src);
+        close(dst);
+        return M_ENV_PATH_SYS_ERR;
     }
+    close(src);
 
-    if(read_only) {
-        if(fchmod(dst, 0444) < 0) {
+    if(mode != 0644) {
+        if(fchmod(dst, mode) < 0) {
             D_WARN("A system error occurred for fchmod().", errno);
         }
     }
-
     close(dst);
-    close(src);
+
     return M_SUCCESS;
 }
 

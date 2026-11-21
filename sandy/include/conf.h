@@ -41,6 +41,7 @@ typedef enum : uint32_t {
     CF_CMD_EMPTY        = CF_E_CMD_S(0, 1), // The command's line was empty.
     CF_CMD_TRAILING     = CF_E_CMD_S(0, 2), // Trailing data after <src> close `"`
     CF_CMD_KIND_UNKNOWN = CF_E_CMD_S(0, 3), // The line's command <kind> is unrecognized.
+    CF_CMD_KIND_PERM    = CF_E_CMD_S(0, 4), // The line's command <kind> has a malformed permission component.
 
     // DST and SRC will be the exact same except the high nibble.
     CF_CMD_DST_UNOPENED = CF_E_CMD_S(1, 0), // The line's <dst> is missing an opening `"`
@@ -60,6 +61,7 @@ typedef struct env_cmd_s {
     const uint8_t* src;
     const uint8_t* dst;
     ConFileKind    kind;
+    int            mode;
 } ConFileCmd;
 
 ConFileErr con_file_new (ConFile** new_file, const char* path);

@@ -49,7 +49,7 @@ bool swap_root_to_mount(int mnt, Verbose v);
 MountErr bind_dev    (PathCtx* ctx, Verbose verbose);
 MountErr bind_dir    (PathCtx* ctx, Verbose verbose, bool read_only);
 MountErr bind_file   (PathCtx* ctx, Verbose verbose, bool read_only);
-MountErr copy_file   (PathCtx* ctx, Verbose verbose, bool read_only);
+MountErr copy_file   (PathCtx* ctx, Verbose verbose, int mode);
 MountErr make_symlink(PathCtx* ctx, Verbose verbose);
 
 void print_mount_error(PathCtx* ctx, MountErr error);
