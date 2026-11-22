@@ -454,9 +454,9 @@ MountErr bind_dev(PathCtx* ctx, Verbose verbose) {
 
     // Attach src file to mnt.
     res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    int err = errno;
+    close(host);
     if(res < 0) {
-        int err = errno;
-        close(host);
         verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
