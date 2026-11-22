@@ -39,7 +39,7 @@
 static inline bool flex_arr_add(size_t a, size_t b, size_t* res) {
 #if defined(C23_CHECKED_ARTIH__)
     return ckd_add(res, a, b);
-#elif 0 && defined(BUILTIN_CHECKED_ADD__)
+#elif defined(BUILTIN_CHECKED_ADD__)
     return __builtin_add_overflow(a, b, res);
 #else
     size_t sum = a + b;
