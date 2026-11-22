@@ -126,15 +126,15 @@ bool setup_proc(int mnt, Verbose v) {
     close(fd);
     if(proc < 0) {
         D_ERROR("Failed to create detached proc mount", err);
-        return -1;
+        return false;
     }
 
     res = move_mount(proc, "", mnt, "proc", MOVE_MOUNT_F_EMPTY_PATH);
     err = errno;
     verbose_line(v, "proc", "move_mount()", res < 0);
+    close(proc);
     if(res < 0) {
         D_ERROR("Failed move_mount() proc mount onto tmpfs mount", err);
-        close(proc);
         return false;
     }
 
@@ -508,9 +508,9 @@ MountErr bind_dir(PathCtx* ctx, Verbose verbose, bool read_only) {
     }
 
     res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    int err = errno;
+    close(host);
     if(res < 0) {
-        int err = errno;
-        close(host);
         verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
@@ -563,9 +563,9 @@ MountErr bind_file(PathCtx* ctx, Verbose verbose, bool read_only) {
     }
 
     res = move_mount(host, "", ctx->mount_fd, (const char*)ctx->buff, MOVE_MOUNT_F_EMPTY_PATH);
+    int err = errno;
+    close(host);
     if(res < 0) {
-        int err = errno;
-        close(host);
         verbose_line(verbose, "mount_mov", (const char*)ctx->host_src, V_FAIL);
         D_WARN("A system error occurred for move_mount() for a host path.", err);
         return M_HST_PATH_SYS_ERR;
