@@ -158,7 +158,7 @@ bool process_args(int argc, char** argv, Config* conf) {
             }
             conf->files[cnt].target    = argv[i + 1];
             conf->files[cnt].host      = argv[i + 2];
-            conf->files[cnt].read_only = bindd_ro;
+            conf->files[cnt].read_only = bindf_ro;
             conf->files_cnt = cnt + 1;
             i += 2;
             continue;
