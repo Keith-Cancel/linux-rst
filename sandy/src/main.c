@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 #include "conf.h"
 #include "diag.h"
@@ -309,6 +310,26 @@ int main(int argc, char **argv) {
     int mnt = setup_mount(v);
     if(mnt < 0) {
         fwrite("Failed to create mount point\n", 1, 29, stderr);
+        return 1;
+    }
+
+    // Fork so we are in the new PID name space.
+    pid_t pid = fork();
+    if(pid < 0) {
+        D_ERROR("fork() failed", errno);
+        return 1;
+    }
+    if(pid > 0) {
+        int status;
+        if (waitpid(pid, &status, 0) < 0) {
+            D_ERROR("waitpid() failed", errno);
+            return 1;
+        }
+        return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+    }
+    
+    if(!setup_proc(mnt, v)) {
+        close(mnt);
         return 1;
     }
 

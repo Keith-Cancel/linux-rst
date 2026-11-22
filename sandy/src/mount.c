@@ -85,6 +85,62 @@ int setup_mount(Verbose v) {
     return mnt;
 }
 
+bool setup_proc(int mnt, Verbose v) {
+    v = verbose_set_title_width(v, 12);
+    verbose_header(v, "Configuring: /proc");
+
+    MountErr e = mkdir_env(mnt, (const uint8_t*)"proc", 0555, v);
+    if(e != M_SUCCESS) {
+        return false;
+    }
+
+    int fd = fsopen("proc", FSOPEN_CLOEXEC);
+    int err = errno;
+    verbose_line(v, "proc", "fsopen()", fd < 0);
+    if(fd < 0) {
+        D_ERROR("Failed to open 'proc' filesystem context via fsopen()", err);
+        return false;
+    }
+
+    int res = fsconfig(fd, FSCONFIG_SET_STRING, "hidepid", "2", 0);
+    err     = errno;
+    verbose_line(v, "proc hidepid", "2", res < 0);
+    if(res < 0) {
+        D_ERROR("Failed to set proc option 'hidepid=2' via fsconfig()", err);
+        close(fd);
+        return false;
+    }
+
+    res = fsconfig(fd, FSCONFIG_CMD_CREATE, NULL, NULL, 0);
+    err = errno;
+    verbose_line(v, "proc", "create", res < 0);
+    if(res < 0) {
+        D_ERROR("Failed to set proc option 'FSCONFIG_CMD_CREATE' via fsconfig()", err);
+        close(fd);
+        return false;
+    }
+
+    int proc = fsmount(fd, FSMOUNT_CLOEXEC, 0);
+    err      = errno;
+    verbose_line(v, "proc", "fsmount()", proc < 0);
+    close(fd);
+    if(proc < 0) {
+        D_ERROR("Failed to create detached proc mount", err);
+        return -1;
+    }
+
+    res = move_mount(proc, "", mnt, "proc", MOVE_MOUNT_F_EMPTY_PATH);
+    err = errno;
+    verbose_line(v, "proc", "move_mount()", res < 0);
+    if(res < 0) {
+        D_ERROR("Failed move_mount() proc mount onto tmpfs mount", err);
+        close(proc);
+        return false;
+    }
+
+    return true;
+}
+
 bool setup_devices(int mnt, Verbose v) {
     uint8_t buff[PATH_MAX + 1];
     PathCtx ctx = {
@@ -754,14 +810,14 @@ static bool enter_namespace(void) {
     uid_t uid = geteuid();
     gid_t gid = getegid();
 
-    if(unshare(CLONE_NEWUSER | CLONE_NEWNS) < 0) {
-        const char *msg = "Failed to make a new mount and user namespace";
+    if(unshare(CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID) < 0) {
+        const char *msg = "Failed to make a new mount, PID, and user namespace";
         if (errno == EPERM) {
-            msg = "Failed to make a new mount and user namespace (user namespaces are probably restricted)";
+            msg = "Failed to make a new mount, PID, and user namespace (user namespaces are probably restricted)";
         } else if (errno == EINVAL) {
-            msg = "Failed to make a new mount and user namespace (user namespaces maybe unsupported)";
+            msg = "Failed to make a new mount, PID, and user namespace (user namespaces maybe unsupported)";
         } else if (errno == ENOSPC) {
-            msg = "Failed to make a new mount and user namespace (namespaces limit reached)";
+            msg = "Failed to make a new mount, PID, and user namespace (namespaces limit reached)";
         }
         D_ERROR(msg, errno);
         return false;
