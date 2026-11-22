@@ -317,9 +317,11 @@ int main(int argc, char **argv) {
     pid_t pid = fork();
     if(pid < 0) {
         D_ERROR("fork() failed", errno);
+        close(mnt);
         return 1;
     }
     if(pid > 0) {
+        close(mnt);
         int status;
         if (waitpid(pid, &status, 0) < 0) {
             D_ERROR("waitpid() failed", errno);
