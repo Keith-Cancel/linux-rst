@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/syscall.h>
+#include <linux/openat2.h>
 
 static bool fd_is_dev      (int fd);
 static bool fd_is_dir      (int fd);
@@ -28,7 +29,7 @@ static MountErr mkdir_env_parent     (int mnt, uint8_t* buf, Verbose verbose);
 static MountErr prep_and_check_paths (PathCtx* ctx);
 static MountErr prep_env_path        (const uint8_t* path, uint8_t buff[], size_t blen);
 
-static int pivot_root(const char *new_root, const char *put_old) {
+static int pivot_root(const char* new_root, const char* put_old) {
     return syscall(SYS_pivot_root, new_root, put_old);
 }
 
@@ -1024,7 +1025,12 @@ static MountErr mkdir_env(int mnt, const uint8_t* path, mode_t mode, Verbose v) 
 }
 
 static MountErr mkfile_env(int mnt, const uint8_t* path, mode_t mode, Verbose v, int* fd_out) {
-    int res = openat(mnt, (const char*)path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC , mode);
+    struct open_how how = {
+        .flags   = O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW | O_CLOEXEC,
+        .mode    = mode,
+        .resolve = RESOLVE_IN_ROOT
+    }; 
+    int res = openat2(mnt, (const char*)path, &how, sizeof(struct open_how));
     if(res >= 0) {
         if(fd_out != nullptr) {
             *fd_out = res;
