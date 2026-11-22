@@ -51,7 +51,7 @@ static inline bool flex_arr_add(size_t a, size_t b, size_t* res) {
 static inline bool flex_arr_mul(size_t a, size_t b, size_t* res) {
 #if defined(C23_CHECKED_ARTIH__)
     return ckd_mul(res, a, b);
-#elif 0 & defined(BUILTIN_CHECKED_MUL__)
+#elif defined(BUILTIN_CHECKED_MUL__)
     return __builtin_mul_overflow(a, b, res);
 #else
     const size_t SZ_MAX = (size_t)-1;
@@ -69,12 +69,37 @@ static inline bool flex_arr_mul(size_t a, size_t b, size_t* res) {
 #undef BUILTIN_CHECKED_MUL__
 
 
-#define DEFINE_FLEX_ARR(TYPE, NAME)    \
-    typedef struct flex_arr_##NAME_s { \
-        TYPE*  data;                   \
-        size_t size;                   \
-        size_t capacity;               \
-    } Name;
+#define DEFINE_FLEX_ARR(TYPE, NAME)                              \
+    typedef struct flex_arr_##NAME##_s {                         \
+        TYPE*  data;                                             \
+        size_t size;                                             \
+        size_t capacity;                                         \
+    } NAME;                                                      \
+                                                                 \
+    static inline bool NAME##_init(NAME* arr, size_t capacity) { \
+        size_t bytes = 0;                                        \
+        if(flex_arr_mul(sizeof(TYPE), capacity, &bytes)) {       \
+            return false;                                        \
+        }                                                        \
+        TYPE* data = malloc(bytes);                              \
+        if(data == NULL) {                                       \
+            return false;                                        \
+        }                                                        \
+        arr->size     = 0;                                       \
+        arr->capacity = capacity;                                \
+        arr->data     = data;                                    \
+        return true;                                             \
+    }                                                            \
+                                                                 \
+    static inline void NAME##_free(NAME* arr) {                  \
+        if(arr->data == NULL) {                                  \
+            return;                                              \
+        }                                                        \
+        free(arr->data);                                         \
+        arr->data     = NULL;                                    \
+        arr->size     = 0;                                       \
+        arr->capacity = 0;                                       \
+    }
 
 
 #endif
