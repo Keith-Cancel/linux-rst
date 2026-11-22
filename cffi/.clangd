@@ -4,7 +4,7 @@ CompileFlags:
   Compiler: clang
   Add: [
     -xc,
-    -std=c11,
+    -std=c99,
     -O2,
     -Wall,
     -Wextra,
@@ -17,7 +17,7 @@ CompileFlags:
   Compiler: clang
   Add: [
     -xc-header,
-    -std=c11,
+    -std=c99,
     -O2,
     -Wall,
     -Wextra,
