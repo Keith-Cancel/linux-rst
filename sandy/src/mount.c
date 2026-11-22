@@ -854,6 +854,9 @@ static MountErr prep_env_path(const uint8_t* path, uint8_t buff[], size_t blen) 
         return M_ENV_PATH_TOO_LONG;
     }
     memset(buff, 0, blen);
+    // This is still nessacry because not all <name>at() calls are like
+    // openat2 where I can pass RESOLVE_IN_ROOT. So we want to make sure
+    // the environment path is relative. (e.g mkdirat)
     path = trim_leading_slashes(path);
 
     // Copy path into the buffer.
