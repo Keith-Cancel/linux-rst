@@ -184,6 +184,41 @@ bool process_args(int argc, char** argv, Config* conf) {
     return true;
 }
 
+MountErr process_cmd(ConFileCmd* cmd, PathCtx* ctx, Verbose v) {
+    ctx->host_src = cmd->src;
+    ctx->env_dst  = cmd->dst;
+    MountErr   me = M_SUCCESS;
+    switch(cmd->kind) {
+        case CF_K_LINK:
+            me = make_symlink(ctx, v);
+            verbose_mnt_action(ctx, v, me, "link");
+            break;
+        case CF_K_COPY:
+            me = copy_file(ctx, v, cmd->mode);
+            verbose_mnt_action(ctx, v, me, "copy");
+            break;
+        case CF_K_BINDF:
+            me = bind_file(ctx, v, true);
+            verbose_mnt_action(ctx, v, me, "mount");
+            break;
+        case CF_K_BINDF_RW:
+            me = bind_file(ctx, v, false);
+            verbose_mnt_action(ctx, v, me, "mount");
+            break;
+        case CF_K_BINDD:
+            me = bind_dir(ctx, v, true);
+            verbose_mnt_action(ctx, v, me, "mount");
+            break;
+        case CF_K_BINDD_RW:
+            me = bind_dir(ctx, v, false);
+            verbose_mnt_action(ctx, v, me, "mount");
+            break;
+        default:
+            break;
+    }
+    return me;
+}
+
 bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
     ConFile* cf  = nullptr;
     verbose_header(v, "Loading Config File");
@@ -198,8 +233,7 @@ bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
     MountErr   me = M_SUCCESS;
     ConFileCmd cmd = { 0 };
     for(;;) {
-        me = M_SUCCESS;
-        e  = con_file_next_cmd(cf, &cmd);
+        e = con_file_next_cmd(cf, &cmd);
         if(e == CF_CMD_DONE) {
             e = CF_SUCCESS;
             break;
@@ -211,37 +245,9 @@ bool process_conf(const char* path, PathCtx* ctx, Verbose v) {
         if(e != CF_SUCCESS) {
             break;
         }
-
-        ctx->host_src = cmd.src;
-        ctx->env_dst  = cmd.dst;
-        switch(cmd.kind) {
-            case CF_K_LINK:
-                me = make_symlink(ctx, v);
-                verbose_mnt_action(ctx, v, me, "link");
-                break;
-            case CF_K_COPY:
-                me = copy_file(ctx, v, cmd.mode);
-                verbose_mnt_action(ctx, v, me, "copy");
-                break;
-            case CF_K_BINDF:
-                me = bind_file(ctx, v, true);
-                verbose_mnt_action(ctx, v, me, "mount");
-                break;
-            case CF_K_BINDF_RW:
-                me = bind_file(ctx, v, false);
-                verbose_mnt_action(ctx, v, me, "mount");
-                break;
-            case CF_K_BINDD:
-                me = bind_dir(ctx, v, true);
-                verbose_mnt_action(ctx, v, me, "mount");
-                break;
-            case CF_K_BINDD_RW:
-                me = bind_dir(ctx, v, false);
-                verbose_mnt_action(ctx, v, me, "mount");
-                break;
-            default:
-                e = CF_CMD_KIND_UNKNOWN;
-                break;
+        me = process_cmd(&cmd, ctx, v);
+        if(me != M_SUCCESS) {
+            break;
         }
     }
 
