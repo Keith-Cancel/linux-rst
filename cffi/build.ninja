@@ -23,6 +23,7 @@ rule touch
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
 build $obj_dir/main.o:       cc ./src/main.c
+build $obj_dir/fldr.o:       cc ./src/fldr.c | ./include/fldr.h
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
 build ./cffi: link $obj_dir/main.o
