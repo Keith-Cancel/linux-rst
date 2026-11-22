@@ -48,6 +48,27 @@ static inline bool flex_arr_add(size_t a, size_t b, size_t* res) {
 #endif
 }
 
+static inline bool flex_arr_mul(size_t a, size_t b, size_t* res) {
+#if defined(C23_CHECKED_ARTIH__)
+    return ckd_mul(res, a, b);
+#elif 0 & defined(BUILTIN_CHECKED_MUL__)
+    return __builtin_mul_overflow(a, b, res);
+#else
+    const size_t SZ_MAX = (size_t)-1;
+
+    *res = a * b;
+    if(b != 0 && a > (SZ_MAX / b)) {
+        return true;
+    }
+    return false;
+#endif
+}
+
+#undef C23_CHECKED_ARTIH__
+#undef BUILTIN_CHECKED_ADD__
+#undef BUILTIN_CHECKED_MUL__
+
+
 #define DEFINE_FLEX_ARR(TYPE, NAME)    \
     typedef struct flex_arr_##NAME_s { \
         TYPE*  data;                   \
