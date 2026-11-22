@@ -434,6 +434,7 @@ int main(int argc, char **argv) {
     int res = execveat(cmd_fd, "", &(argv[conf.cmd_idx]), env_envp, AT_EMPTY_PATH);
     if(res < 0) {
         perror("execveat");
+        return 1;
     }
     return 0;
 }
