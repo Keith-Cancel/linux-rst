@@ -130,17 +130,21 @@ void flex_arr_free(void* arr) {
 }*/
 
 // Basically I want a value that be an alignment and size.
-// sizeof(size_t) will always be some multiple of
-// of it's alignment. Here I round up the size to
-// the next power of two which always is an alignment
-// more strict, and will have enough space to store
-// a usize.
-// e.g. think about a hypothetical system with
-// sizeof(size_t) = 6 and alignof(size_t) = 2
+//
+// This produces a power of two value >= sizeof(size_t).
+// That is also a valid power of two alignment, because
+// it will always a stricter alignment than alignof(size_t).
+// This is because sizeof(size_t) is always a multiple
+// of alignof(size_t) so the next power of two >= sizeof(size_t)
+// will always >= alignof(size_t).
+//
+// e.g. think about a hypothetical system with:
+// - sizeof(size_t) = 6
+// - alignof(size_t) = 2
 // we would need 8 to be that value.
 const size_t USZ_SZ_ALIGN = sizeof(size_t) <= 1   ? 1
                             : sizeof(size_t) <= 2 ? 2
                             : sizeof(size_t) <= 4 ? 4
                             : sizeof(size_t) <= 8 ? 8
                                                   : 16;
-_Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger than 128 bits");
+_Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 maybe a 128 bit machine...");
