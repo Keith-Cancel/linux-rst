@@ -3,19 +3,25 @@
 
 #include <stddef.h>
 
-/* clang-format off */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-   /* alignof is a keyword in C23 */
+    /* alignof is a keyword in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-    /* Just use the macro from stdalign.h */
-    #include <stdalign.h>
+    #if !defined(__alignof_is_defined)
+        /* Just use the macro from stdalign.h */
+        #include <stdalign.h>
+    #endif
 #elif defined(_MSC_VER)
     #define alignof(TYPE) __alignof(TYPE)
 #elif (defined(__GNUC__) && __GNUC__ >= 2) || defined(__clang__)
     #define alignof(TYPE) __extension__ __alignof__(TYPE)
 #else
-    #define alignof(TYPE) ((size_t)(((char *)&(((struct { char a; TYPE b; } *)0)->b)) - (char *)0))
+    /* This is kinda of a best effor attempt since in this case
+    ** I don't have any compiler features to rely on.
+    */
+    /* clang-format off */
+    #define alignof(TYPE) ((size_t)(((char*)&(((struct { char a; TYPE t; }*)0)->t)) - (char*)0))
+    /* clang-format on */
 #endif
-/* clang-format on */
+
 
 #endif
