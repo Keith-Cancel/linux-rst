@@ -52,15 +52,15 @@
     #if defined(__has_include)
         #if __has_include(<stdckdint.h>)
             #include <stdckdint.h>
-            #define HAS_C23_CHECKED_ARTIH 1
+            #define HAS_C23_CHECKED_ARITH 1
         #endif
     #else
         #include <stdckdint.h>
-        #define HAS_C23_CHECKED_ARTIH 1
+        #define HAS_C23_CHECKED_ARITH 1
     #endif
 #endif
 
-#if !defined(HAS_C23_CHECKED_ARTIH)
+#if !defined(HAS_C23_CHECKED_ARITH)
     #if defined(__has_builtin)
         #if __has_builtin(__builtin_add_overflow)
             #define HAS_BUILTIN_CHECKED_ADD 1
@@ -87,7 +87,7 @@
 #endif
 
 COMPAT_FINLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
-#if defined(HAS_C23_CHECKED_ARTIH)
+#if defined(HAS_C23_CHECKED_ARITH)
     return ckd_add(res, a, b);
 #elif defined(HAS_BUILTIN_CHECKED_ADD)
     return __builtin_add_overflow(a, b, res);
@@ -99,7 +99,7 @@ COMPAT_FINLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
 }
 
 COMPAT_FINLINE_FN bool checked_mul_sz(size_t a, size_t b, size_t* res) {
-#if defined(HAS_C23_CHECKED_ARTIH)
+#if defined(HAS_C23_CHECKED_ARITH)
     return ckd_mul(res, a, b);
 #elif defined(HAS_BUILTIN_CHECKED_MUL)
     return __builtin_mul_overflow(a, b, res);
@@ -113,7 +113,7 @@ COMPAT_FINLINE_FN bool checked_mul_sz(size_t a, size_t b, size_t* res) {
 #endif
 }
 
-#undef HAS_C23_CHECKED_ARTIH
+#undef HAS_C23_CHECKED_ARITH
 #undef HAS_BUILTIN_CHECKED_ADD
 #undef HAS_BUILTIN_CHECKED_MUL
 #undef COMPAT_FINLINE_FN
