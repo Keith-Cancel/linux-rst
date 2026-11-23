@@ -64,7 +64,7 @@ COMPAT_FINLINE_FN bool usz_checked_add(size_t a, size_t b, size_t* res) {
 COMPAT_FINLINE_FN bool u32_checked_add(uint32_t a, uint32_t b, uint32_t* res) {
     return __builtin_add_overflow(a, b, res);
 }
-#else
+#elif !defined(HAS_C23_CHECKED_ARITH)
 COMPAT_FINLINE_FN bool usz_checked_add(size_t a, size_t b, size_t* res) {
     size_t sum = a + b;
     *res       = sum;
@@ -85,7 +85,7 @@ COMPAT_FINLINE_FN bool usz_checked_mul(size_t a, size_t b, size_t* res) {
 COMPAT_FINLINE_FN bool u32_checked_mul(uint32_t a, uint32_t b, uint32_t* res) {
     return __builtin_mul_overflow(a, b, res);
 }
-#else
+#elif !defined(HAS_C23_CHECKED_ARITH)
 COMPAT_FINLINE_FN bool usz_checked_mul(size_t a, size_t b, size_t* res) {
     const size_t USZ_MAX = (size_t)-1;
     *res                 = a * b;
