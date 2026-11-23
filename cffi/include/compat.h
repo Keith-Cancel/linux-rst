@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-/* alignof is a keyword in C23 */
+    /* alignof is a keyword in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
     /* Just use the macro from stdalign.h */
     #include <stdalign.h>
@@ -13,12 +13,12 @@
 #elif (defined(__GNUC__) && __GNUC__ >= 2) || defined(__clang__)
     #define alignof(TYPE) __extension__ __alignof__(TYPE)
 #else
-    /* This is kinda of a best effor attempt since in this case
+    /* This is kinda of a best effort attempt since in this case
     ** I don't have any compiler features to rely on.
     */
     /* clang-format off */
     #define alignof(TYPE) ((size_t)(((char*)&(((struct { char a; TYPE t; }*)0)->t)) - (char*)0))
-/* clang-format on */
+    /* clang-format on */
 #endif
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
