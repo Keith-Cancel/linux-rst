@@ -4,7 +4,16 @@
 #include <stddef.h>
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-    /* alignof is a keyword in C23 */
+/* bool, true, and false are keywords in C23 */
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #include <stdbool.h>
+#else
+    #error "This header requires C99 or later."
+#endif
+
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+/* alignof is a keyword in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
     /* Just use the macro from stdalign.h */
     #include <stdalign.h>
@@ -18,22 +27,9 @@
     */
     /* clang-format off */
     #define alignof(TYPE) ((size_t)(((char*)&(((struct { char a; TYPE t; }*)0)->t)) - (char*)0))
-    /* clang-format on */
+/* clang-format on */
 #endif
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-/* bool, true, and false are keywords in C23 */
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #include <stdbool.h>
-#else
-    #ifndef true
-        #define true 1
-    #endif
-    #ifndef false
-        #define false 0
-    #endif
-typedef unsigned char bool;
-#endif
 
 /* clang-format off */
 #ifndef MY_CHECKED_MATH_COMPAT
@@ -71,10 +67,8 @@ typedef unsigned char bool;
     #define COMPAT_FINLINE_FN static __inline__ __attribute__((__always_inline__))
 #elif defined(_MSC_VER)
     #define COMPAT_FINLINE_FN static __forceinline
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #define COMPAT_FINLINE_FN static inline
 #else
-    #define COMPAT_FINLINE_FN static
+    #define COMPAT_FINLINE_FN static inlinec
 #endif
 
 COMPAT_FINLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
