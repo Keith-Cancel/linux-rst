@@ -150,3 +150,45 @@ const size_t USZ_SZ_ALIGN = sizeof(size_t) <= 1   ? 1
                             : sizeof(size_t) <= 8 ? 8
                                                   : 16;
 _Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 maybe a 128 bit machine...");
+
+void* flex_arr_new_ext(size_t align, size_t capacity, size_t element_size) {
+    // Make sure it's a power of 2
+    if(align == 0 || (align & (align - 1)) != 0) {
+        return NULL;
+    }
+    // If align <= USZ_SZ_ALIGN:
+    // - alignment:   USZ_SZ_ALIGN
+    // - extra space: 2 * USZ_SZ_ALIGN;
+    //
+    // if align > USZ_SZ_ALIGN:
+    // - alignment:   align
+    // - extra space: align
+    // This works because the next alignment larger
+    // always be 2 * USZ_SZ_ALIGN so can store two
+    // USZ_SZ_ALIGN (e.g size_t)
+    size_t max_align = USZ_SZ_ALIGN;
+    size_t extra_spc = 2 * USZ_SZ_ALIGN;
+    if(align > USZ_SZ_ALIGN) {
+        max_align = align;
+        extra_spc = align;
+    }
+
+    size_t bytes;
+    if(usz_checked_mul(element_size, capacity, &bytes)) {
+        return NULL;
+    }
+    if(usz_checked_add(bytes, extra_spc, &bytes)) {
+        return NULL;
+    }
+
+    uint8_t* mem = aligned_alloc(max_align, bytes);
+    if(mem == NULL) {
+        return NULL;
+    }
+    uint8_t* start = mem + extra_spc;
+
+    size_t len = 0;
+    memcpy(start - USZ_SZ_ALIGN, &len, sizeof(size_t));
+    memcpy(start - (2 * USZ_SZ_ALIGN), &capacity, sizeof(size_t));
+    return start;
+}
