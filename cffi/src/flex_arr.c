@@ -40,6 +40,11 @@ static bool alloc_size(size_t el_sz, size_t max_align, size_t el_cnt, size_t* by
 }
 
 void* flex_arr_new(size_t el_size, size_t el_align, size_t capacity) {
+    // Make sure it's a power of 2
+    if(el_align == 0 || (el_align & (el_align - 1)) != 0) {
+        return NULL;
+    }
+
     size_t max_align = el_align > alignof(size_t) ? el_align : alignof(size_t);
     size_t bytes;
     if(alloc_size(el_size, max_align, capacity, &bytes)) {
