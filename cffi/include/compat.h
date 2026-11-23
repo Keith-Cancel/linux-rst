@@ -6,10 +6,8 @@
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 /* alignof is a keyword in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-    #ifndef __alignof_is_defined
-        /* Just use the macro from stdalign.h */
-        #include <stdalign.h>
-    #endif
+    /* Just use the macro from stdalign.h */
+    #include <stdalign.h>
 #elif defined(_MSC_VER)
     #define alignof(TYPE) __alignof(TYPE)
 #elif (defined(__GNUC__) && __GNUC__ >= 2) || defined(__clang__)
@@ -26,9 +24,7 @@
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 /* bool, true, and false are keywords in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #ifndef __bool_true_false_are_defined
-        #include <stdbool.h>
-    #endif
+    #include <stdbool.h>
 #else
     #ifndef true
         #define true 1
@@ -36,12 +32,7 @@
     #ifndef false
         #define false 0
     #endif
-
-    /* clang-format off */
-    #ifndef bool
-        typedef unsigned char bool;
-    #endif
-    /* clang-format on */
+typedef unsigned char bool;
 #endif
 
 /* clang-format off */
