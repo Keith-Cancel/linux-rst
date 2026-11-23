@@ -1,7 +1,9 @@
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
-#include <stdalign.h>
 #include <stdlib.h>
+#include <stdalign.h>
+#include <string.h>
 
 #include "flex_arr.h"
 #include "math_chk.h"
@@ -66,9 +68,42 @@ void* flex_arr_new(size_t capacity, size_t el_size, size_t el_align) {
     if(el_align == 0 || (el_align & (el_align - 1)) != 0) {
         return NULL;
     }
-
     size_t max_align = el_align > alignof(size_t) ? el_align : alignof(size_t);
     return alloc_mem(capacity, el_size, max_align);
+}
+
+void* flex_arr_expand(void* arr) {
+    if(arr == NULL) {
+        return NULL;
+    }
+    size_t* hdr     = arr;
+    size_t  old_cap = hdr[-2];
+    // There is a case of if old cap is 1 or 0 a right shift
+    // by 1 will just be zero so just always make sure that
+    // larger than those by choosing 16 here.
+    if(old_cap < 16) {
+        old_cap = 16;
+    }
+
+    size_t new_cap = old_cap >> 1;
+    // Try to increase by 50%
+    if(usz_checked_add(new_cap, old_cap, &new_cap)) {
+        return NULL;
+    }
+
+    uint8_t* new_mem = alloc_mem(new_cap, hdr[-3], hdr[-4]);
+    if(new_mem == NULL) {
+        return NULL;
+    }
+    // Can't overflow we previously allocated el_sz * cap and len <= cap
+    size_t len   = hdr[-1];
+    size_t bytes = len * hdr[-3];
+    // Copy the old data over;
+    memcpy(new_mem, arr, bytes);
+    ((size_t*)new_mem)[-1] = len;
+
+    flex_arr_free(arr);
+    return new_mem;
 }
 
 void flex_arr_free(void* arr) {
