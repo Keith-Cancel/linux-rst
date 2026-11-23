@@ -1,8 +1,6 @@
-#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdalign.h>
 #include <string.h>
 
 #include "flex_arr.h"
@@ -74,7 +72,7 @@ static uint8_t* alloc_mem(size_t cap, size_t el_sz, size_t max_align) {
     return start;
 }
 
-void* flex_arr_new(size_t capacity, size_t el_size, size_t el_align) {
+void* flex_arr_new_ext(size_t capacity, size_t el_size, size_t el_align) {
     // Make sure it's a power of 2
     if(el_align == 0 || (el_align & (el_align - 1)) != 0) {
         return NULL;
