@@ -9,6 +9,7 @@ CompileFlags:
     -Wall,
     -Wextra,
     -Wshadow,
+    -Wpedantic,
   ]
 ---
 If:
@@ -22,4 +23,5 @@ CompileFlags:
     -Wall,
     -Wextra,
     -Wshadow,
+    -Wpedantic,
   ]
