@@ -7,8 +7,8 @@ c_libs   =
 c_inc    = -I./include
 c_opt    = -O2 -march=native
 c_extra  = -fdiagnostics-color=always
-c_flags  = -std=c11 -fno-ident
-c_warn   = -Wall -Wextra -Wshadow
+c_flags  = -std=c99 -fno-ident 
+c_warn   = -Wall -Wextra -Wshadow -Wpedantic
 c_define =
 
 # ~~~~~~~~~~~ RULES ~~~~~~~~~~~
@@ -23,7 +23,8 @@ rule touch
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
 build $obj_dir/main.o:       cc ./src/main.c
-build $obj_dir/fldr.o:       cc ./src/fldr.c | ./include/fldr.h
+build $obj_dir/fldr.o:       cc ./src/fldr.c | ./include/fldr.h ./include/flex_arr.h
+build $obj_dir/flex_arr.o:   cc ./src/fldr.c | ./include/flex_arr.h ./include/compat.h
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
 build ./cffi: link $obj_dir/main.o
