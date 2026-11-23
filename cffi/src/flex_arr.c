@@ -130,6 +130,8 @@ void flex_arr_free(void* arr) {
 }*/
 
 // Basically I want a value that be an alignment and size.
+// - Size: >= sizeof(size_t), so it has enough space to store a size_t.
+// - Align: >= alignof(size_t) and is a power of two.
 //
 // This produces a power of two value >= sizeof(size_t).
 // That is also a valid power of two alignment, because
