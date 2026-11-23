@@ -102,7 +102,7 @@ void* flex_arr_expand(void* arr) {
     memcpy(new_mem, arr, bytes);
     ((size_t*)new_mem)[-1] = len;
 
-    flex_arr_free(arr);
+    flex_arr_free(hdr);
     return new_mem;
 }
 
