@@ -12,7 +12,7 @@
 
 const size_t HDR_SZ = sizeof(size_t) * 5;
 
-static uint8_t* align_up(uint8_t* ptr, size_t alignment) {
+static inline uint8_t* align_up(uint8_t* ptr, size_t alignment) {
     uintptr_t inc  = alignment - 1;
     uintptr_t msk  = ~inc;
     uintptr_t base = (uintptr_t)ptr;
@@ -20,11 +20,11 @@ static uint8_t* align_up(uint8_t* ptr, size_t alignment) {
     return (uint8_t*)new;
 }
 
-static bool alloc_size(size_t el_sz, size_t max_align, size_t el_cnt, size_t* bytes) {
+static bool alloc_size(size_t cap, size_t el_sz, size_t max_align, size_t* bytes) {
     size_t padding = max_align - 1;
     size_t amt;
     // Calculate array length in bytes
-    if(usz_checked_mul(el_sz, el_cnt, &amt)) {
+    if(usz_checked_mul(el_sz, cap, &amt)) {
         return true;
     }
     // Add the bytes needed for the five size_t fields.
@@ -39,34 +39,36 @@ static bool alloc_size(size_t el_sz, size_t max_align, size_t el_cnt, size_t* by
     return false;
 }
 
-void* flex_arr_new(size_t el_size, size_t el_align, size_t capacity) {
+static uint8_t* alloc_mem(size_t cap, size_t el_sz, size_t max_align) {
+    size_t bytes;
+    if(alloc_size(cap, el_sz, max_align, &bytes)) {
+        return NULL;
+    }
+    uint8_t* mem = malloc(bytes);
+    if(mem == NULL) {
+        return NULL;
+    }
+    uint8_t* start = align_up(mem + HDR_SZ, max_align);
+    size_t   off   = start - mem;
+    size_t*  hdr   = (size_t*)start;
+
+    hdr[-1] = 0;
+    hdr[-2] = cap;
+    hdr[-3] = el_sz;
+    hdr[-4] = max_align;
+    hdr[-5] = off;
+
+    return start;
+}
+
+void* flex_arr_new(size_t capacity, size_t el_size, size_t el_align) {
     // Make sure it's a power of 2
     if(el_align == 0 || (el_align & (el_align - 1)) != 0) {
         return NULL;
     }
 
     size_t max_align = el_align > alignof(size_t) ? el_align : alignof(size_t);
-    size_t bytes;
-    if(alloc_size(el_size, max_align, capacity, &bytes)) {
-        return NULL;
-    }
-
-    uint8_t* mem = malloc(bytes);
-    if(mem == NULL) {
-        return NULL;
-    }
-
-    uint8_t* start = align_up(mem + HDR_SZ, max_align);
-    size_t   off   = start - mem;
-    size_t*  hdr   = (size_t*)start;
-
-    hdr[-1] = 0;
-    hdr[-2] = capacity;
-    hdr[-3] = el_size;
-    hdr[-4] = max_align;
-    hdr[-5] = off;
-
-    return start;
+    return alloc_mem(capacity, el_size, max_align);
 }
 
 void flex_arr_free(void* arr) {
