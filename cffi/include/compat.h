@@ -6,7 +6,7 @@
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 /* alignof is a keyword in C23 */
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-    #if !defined(__alignof_is_defined)
+    #ifndef __alignof_is_defined
         /* Just use the macro from stdalign.h */
         #include <stdalign.h>
     #endif
@@ -34,7 +34,7 @@
         #define true 1
     #endif
     #ifndef false
-        #define false 1
+        #define false 0
     #endif
 
     /* clang-format off */
@@ -44,10 +44,22 @@
     /* clang-format on */
 #endif
 
-
 /* clang-format off */
 #ifndef MY_CHECKED_MATH_COMPAT
 #define MY_CHECKED_MATH_COMPAT
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
+    #if defined(__has_include)
+        #if __has_include(<stdckdint.h>)
+            #include <stdckdint.h>
+            #define HAS_C23_CHECKED_ARTIH 1
+        #endif
+    #else
+        #include <stdckdint.h>
+        #define HAS_C23_CHECKED_ARTIH 1
+    #endif
+#endif
+
 #if !defined(HAS_C23_CHECKED_ARTIH)
     #if defined(__has_builtin)
         #if __has_builtin(__builtin_add_overflow)
@@ -56,22 +68,25 @@
         #if __has_builtin(__builtin_mul_overflow)
             #define HAS_BUILTIN_CHECKED_MUL 1
         #endif
-    #elif !defined(__clang__) && (defined(__GNUC__) && (__GNUC__ >= 5)) || \
+    #elif (!defined(__clang__) && defined(__GNUC__) && (__GNUC__ >= 5)) || \
+        (defined(__clang__) && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 8))) || \
         (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1900))
         #define HAS_BUILTIN_CHECKED_ADD 1
         #define HAS_BUILTIN_CHECKED_MUL 1
     #endif
 #endif
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #define COMPAT_INLINE_FN static inline
-#elif defined(_MSC_VER) || defined(__GNUC__) || defined(__clang__)
-    #define COMPAT_INLINE_FN static __inline
+#if (defined(__GNUC__) || defined(__clang__))
+    #define COMPAT_FINLINE_FN static __inline__ __attribute__((__always_inline__))
+#elif defined(_MSC_VER)
+    #define COMPAT_FINLINE_FN static __forceinline
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define COMPAT_FINLINE_FN static inline
 #else
-    #define COMPAT_INLINE_FN static
+    #define COMPAT_FINLINE_FN static
 #endif
 
-COMPAT_INLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
 #if defined(HAS_C23_CHECKED_ARTIH)
     return ckd_add(res, a, b);
 #elif defined(HAS_BUILTIN_CHECKED_ADD)
@@ -83,14 +98,13 @@ COMPAT_INLINE_FN bool checked_add_sz(size_t a, size_t b, size_t* res) {
 #endif
 }
 
-COMPAT_INLINE_FN bool checked_mul_sz(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool checked_mul_sz(size_t a, size_t b, size_t* res) {
 #if defined(HAS_C23_CHECKED_ARTIH)
     return ckd_mul(res, a, b);
 #elif defined(HAS_BUILTIN_CHECKED_MUL)
     return __builtin_mul_overflow(a, b, res);
 #else
     const size_t SZ_MAX = (size_t)-1;
-
     *res = a * b;
     if(b != 0 && a > (SZ_MAX / b)) {
         return true;
@@ -102,7 +116,7 @@ COMPAT_INLINE_FN bool checked_mul_sz(size_t a, size_t b, size_t* res) {
 #undef HAS_C23_CHECKED_ARTIH
 #undef HAS_BUILTIN_CHECKED_ADD
 #undef HAS_BUILTIN_CHECKED_MUL
-#undef COMPAT_INLINE_FN
+#undef COMPAT_FINLINE_FN
 
 /* clang-format on */
 #endif
