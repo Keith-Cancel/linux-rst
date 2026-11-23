@@ -8,9 +8,9 @@
 
 #define flex_arr_new(TYPE, capacity) (TYPE*)(flex_arr_new_ext((capacity), sizeof(TYPE), alignof(TYPE)))
 
-void* flex_arr_new_ext(size_t capacity, size_t el_size, size_t el_align);
+void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t alignment);
 void* flex_arr_expand(void* flex_arr);
-void  flex_arr_free(void* flex_arr);
+void  flex_arr_free(void* flex_arr, size_t align);
 
 static inline size_t flex_arr_len(const void* flex_arr) {
     char*  ptr = ((char*)flex_arr) - sizeof(size_t);

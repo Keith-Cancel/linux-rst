@@ -119,15 +119,7 @@ void* flex_arr_expand(void* arr) {
     return new_arr;
 }
 
-void flex_arr_free(void* arr) {
-    if(arr == NULL) {
-        return;
-    }
-    uint8_t* ptr = (uint8_t*)arr;
-    size_t   off;
-    memcpy(&off, ptr - HDR_SZ, sizeof(size_t));
-    free(ptr - off);
-}*/
+*/
 
 // Basically I want a value that be an alignment and size.
 // - Size: >= sizeof(size_t), so it has enough space to store a size_t.
@@ -151,7 +143,7 @@ const size_t USZ_SZ_ALIGN = sizeof(size_t) <= 1   ? 1
                                                   : 16;
 _Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 maybe a 128 bit machine...");
 
-void* flex_arr_new_ext(size_t align, size_t capacity, size_t element_size) {
+void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
     // Make sure it's a power of 2
     if(align == 0 || (align & (align - 1)) != 0) {
         return NULL;
@@ -191,4 +183,16 @@ void* flex_arr_new_ext(size_t align, size_t capacity, size_t element_size) {
     memcpy(start - USZ_SZ_ALIGN, &len, sizeof(size_t));
     memcpy(start - (2 * USZ_SZ_ALIGN), &capacity, sizeof(size_t));
     return start;
+}
+
+void flex_arr_free(void* arr, size_t align) {
+    if(arr == NULL) {
+        return;
+    }
+    size_t extra_spc = 2 * USZ_SZ_ALIGN;
+    if(align > USZ_SZ_ALIGN) {
+        extra_spc = align;
+    }
+    uint8_t* ptr = (uint8_t*)arr;
+    free(ptr - extra_spc);
 }
