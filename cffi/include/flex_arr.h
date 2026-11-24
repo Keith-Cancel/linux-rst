@@ -9,24 +9,10 @@
 #define flex_arr_new(TYPE, capacity) (TYPE*)(flex_arr_new_ext((capacity), sizeof(TYPE), alignof(TYPE)))
 
 void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t alignment);
-void* flex_arr_expand(void* flex_arr);
+void* flex_arr_expand(void* arr, size_t element_size, size_t align);
 void  flex_arr_free(void* flex_arr, size_t align);
 
 /*
-static inline size_t flex_arr_len(const void* flex_arr) {
-    char*  ptr = ((char*)flex_arr) - sizeof(size_t);
-    size_t len;
-    memcpy(&len, ptr, sizeof(size_t));
-    return len;
-}
-
-static inline size_t flex_arr_capacity(const void* flex_arr) {
-    char*  ptr = ((char*)flex_arr) - (2 * sizeof(size_t));
-    size_t cap;
-    memcpy(&cap, ptr, sizeof(size_t));
-    return cap;
-}
-
 #define def_flex_arr_push(TYPE, NAME)                              \
     static bool flex_arr_push_##NAME(TYPE* flex_arr, TYPE value) { \
         size_t len = flex_arr_len(flex_arr);                       \
@@ -93,6 +79,23 @@ static inline size_t flex_arr_max_align(size_t align) {
 
 static inline size_t flex_arr_ext_space(size_t align) {
     return align > USZ_SZ_ALIGN ? align : 2 * USZ_SZ_ALIGN;
+}
+
+
+static inline size_t flex_arr_len(const void* flex_arr) {
+    const char* ptr = flex_arr;
+
+    size_t len;
+    memcpy(&len, ptr - USZ_SZ_ALIGN, sizeof(size_t));
+    return len;
+}
+
+static inline size_t flex_arr_capacity(const void* flex_arr) {
+    const char* ptr = flex_arr;
+
+    size_t cap;
+    memcpy(&cap, ptr - (2 * USZ_SZ_ALIGN), sizeof(size_t));
+    return cap;
 }
 
 #endif
