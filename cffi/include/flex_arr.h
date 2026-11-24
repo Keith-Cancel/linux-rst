@@ -5,11 +5,11 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define flex_arr_new(TYPE, capacity) (TYPE*)(flex_arr_new_ext((capacity), sizeof(TYPE), _Alignof(TYPE)))
+#define farr_new(TYPE, capacity) (TYPE*)(farr_new_ext((capacity), sizeof(TYPE), _Alignof(TYPE)))
 
-void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t alignment);
-void* flex_arr_expand(void* arr, size_t element_size, size_t align);
-void  flex_arr_free(void* flex_arr, size_t align);
+void* farr_new_ext(size_t capacity, size_t element_size, size_t alignment);
+void* farr_expand(void* arr, size_t element_size, size_t align);
+void  farr_free(void* flex_arr, size_t align);
 
 // Basically I want a value that be an alignment and size.
 // - Size: >= sizeof(size_t), so it has enough space to store a size_t.
@@ -44,16 +44,15 @@ _Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 more t
 // This works because the next alignment larger
 // always be 2 * USZ_SZ_ALIGN so can store two
 // USZ_SZ_ALIGN (e.g size_t)
-static inline size_t flex_arr_max_align(size_t align) {
+static inline size_t farr_max_align(size_t align) {
     return align > USZ_SZ_ALIGN ? align : USZ_SZ_ALIGN;
 }
 
-static inline size_t flex_arr_ext_space(size_t align) {
+static inline size_t farr_ext_space(size_t align) {
     return align > USZ_SZ_ALIGN ? align : 2 * USZ_SZ_ALIGN;
 }
 
-
-static inline size_t flex_arr_len(const void* flex_arr) {
+static inline size_t farr_len(const void* flex_arr) {
     const char* ptr = flex_arr;
 
     size_t len;
@@ -61,7 +60,7 @@ static inline size_t flex_arr_len(const void* flex_arr) {
     return len;
 }
 
-static inline size_t flex_arr_capacity(const void* flex_arr) {
+static inline size_t farr_capacity(const void* flex_arr) {
     const char* ptr = flex_arr;
 
     size_t cap;
@@ -69,10 +68,10 @@ static inline size_t flex_arr_capacity(const void* flex_arr) {
     return cap;
 }
 
-#define def_flex_arr_push(TYPE, NAME)                              \
-    static bool flex_arr_push_##NAME(TYPE* flex_arr, TYPE value) { \
-        size_t len = flex_arr_len(flex_arr);                       \
-        if(len >= flex_arr_capacity(flex_arr)) {                   \
+#define FARR_DEF_TRY_PUSH(TYPE, NAME)                              \
+    static bool farr_try_push_##NAME(TYPE* flex_arr, TYPE value) { \
+        size_t len = farr_len(flex_arr);                           \
+        if(len >= farr_capacity(flex_arr)) {                       \
             return false;                                          \
         }                                                          \
         flex_arr[len]  = value;                                    \
@@ -82,35 +81,35 @@ static inline size_t flex_arr_capacity(const void* flex_arr) {
         return true;                                               \
     }
 
-#define def_flex_arr_pop(TYPE, NAME)                             \
-    static bool flex_arr_pop_##NAME(TYPE* flex_arr, TYPE* out) { \
-        size_t len = flex_arr_len(flex_arr);                     \
-        if(len < 1) {                                            \
-            return false;                                        \
-        }                                                        \
-        len -= 1;                                                \
-        if(out != NULL) {                                        \
-            *out = flex_arr[len];                                \
-        }                                                        \
-        char* ptr = ((char*)flex_arr) - USZ_SZ_ALIGN;            \
-        memcpy(ptr, &len, sizeof(size_t));                       \
-        return true;                                             \
+#define FARR_DEF_POP(TYPE, NAME)                             \
+    static bool farr_pop_##NAME(TYPE* flex_arr, TYPE* out) { \
+        size_t len = farr_len(flex_arr);                     \
+        if(len < 1) {                                        \
+            return false;                                    \
+        }                                                    \
+        len -= 1;                                            \
+        if(out != NULL) {                                    \
+            *out = flex_arr[len];                            \
+        }                                                    \
+        char* ptr = ((char*)flex_arr) - USZ_SZ_ALIGN;        \
+        memcpy(ptr, &len, sizeof(size_t));                   \
+        return true;                                         \
     }
 
-#define def_flex_arr_push_grow(TYPE, NAME)                                      \
-    static inline TYPE* flex_arr_push_grow_##NAME(TYPE* flex_arr, TYPE value) { \
-        size_t len = flex_arr_len(flex_arr);                                    \
-        if(len >= flex_arr_capacity(flex_arr)) {                                \
-            flex_arr = flex_arr_expand(flex_arr, sizeof(TYPE), _Alignof(TYPE)); \
-            if(flex_arr == NULL) {                                              \
-                return NULL;                                                    \
-            }                                                                   \
-        }                                                                       \
-        flex_arr[len]  = value;                                                 \
-        len           += 1;                                                     \
-        char* ptr      = ((char*)flex_arr) - USZ_SZ_ALIGN;                      \
-        memcpy(ptr, &len, sizeof(size_t));                                      \
-        return flex_arr;                                                        \
+#define FARR_DEF_PUSH(TYPE, NAME)                                           \
+    static inline TYPE* farr_push_##NAME(TYPE* flex_arr, TYPE value) {      \
+        size_t len = farr_len(flex_arr);                                    \
+        if(len >= farr_capacity(flex_arr)) {                                \
+            flex_arr = farr_expand(flex_arr, sizeof(TYPE), _Alignof(TYPE)); \
+            if(flex_arr == NULL) {                                          \
+                return NULL;                                                \
+            }                                                               \
+        }                                                                   \
+        flex_arr[len]  = value;                                             \
+        len           += 1;                                                 \
+        char* ptr      = ((char*)flex_arr) - USZ_SZ_ALIGN;                  \
+        memcpy(ptr, &len, sizeof(size_t));                                  \
+        return flex_arr;                                                    \
     }
 
 #endif

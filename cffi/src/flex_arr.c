@@ -13,8 +13,8 @@ static inline void* flex_arr_alloc(size_t capacity, size_t element_size, size_t 
     if(align == 0 || (align & (align - 1)) != 0) {
         return NULL;
     }
-    size_t max_align = flex_arr_max_align(align);
-    size_t extra_spc = flex_arr_ext_space(align);
+    size_t max_align = farr_max_align(align);
+    size_t extra_spc = farr_ext_space(align);
     size_t bytes;
     if(usz_checked_mul(element_size, capacity, &bytes)) {
         return NULL;
@@ -35,16 +35,16 @@ static inline void* flex_arr_alloc(size_t capacity, size_t element_size, size_t 
 }
 
 
-void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
+void* farr_new_ext(size_t capacity, size_t element_size, size_t align) {
     return flex_arr_alloc(capacity, element_size, align, 0);
 }
 
-void* flex_arr_expand(void* arr, size_t element_size, size_t align) {
+void* farr_expand(void* arr, size_t element_size, size_t align) {
     if(arr == NULL) {
         return NULL;
     }
-    size_t len     = flex_arr_len(arr);
-    size_t old_cap = flex_arr_capacity(arr);
+    size_t len     = farr_len(arr);
+    size_t old_cap = farr_capacity(arr);
     old_cap        = old_cap < 8 ? 8 : old_cap;
     // Try to increase by 50%
     size_t new_cap = old_cap >> 1;
@@ -60,15 +60,15 @@ void* flex_arr_expand(void* arr, size_t element_size, size_t align) {
     size_t amt = len * element_size;
     memcpy(start, arr, amt);
 
-    flex_arr_free(arr, align);
+    farr_free(arr, align);
     return start;
 }
 
-void flex_arr_free(void* arr, size_t align) {
+void farr_free(void* arr, size_t align) {
     if(arr == NULL) {
         return;
     }
-    size_t extra_spc = flex_arr_ext_space(align);
+    size_t extra_spc = farr_ext_space(align);
     char*  ptr       = (char*)arr;
     xmem_free(ptr - extra_spc);
 }
