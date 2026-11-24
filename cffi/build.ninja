@@ -7,7 +7,7 @@ c_libs   =
 c_inc    = -I./include
 c_opt    = -O2 -march=native
 c_extra  = -fdiagnostics-color=always
-c_flags  = -std=c11 -fno-ident 
+c_flags  = -std=c99 -fno-ident 
 c_warn   = -Wall -Wextra -Wshadow -Wpedantic -Wstrict-aliasing=1
 c_define =
 

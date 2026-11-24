@@ -11,6 +11,6 @@ void* xmem_alloc(size_t size);
 void* xmem_aligned(size_t alignment, size_t size);
 void  xmem_free(void* ptr);
 
-void xmem_override(xmem_alloc_fn alloc, xmem_aligned_fn aligned, xmem_free_fn free);
+int xmem_override(xmem_alloc_fn alloc, xmem_aligned_fn aligned, xmem_free_fn free);
 
 #endif
