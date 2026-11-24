@@ -9,6 +9,7 @@
 #define farr_free(TYPE, array)   farr_free_ext((array), _Alignof(TYPE))
 
 void* farr_new_ext(size_t capacity, size_t element_size, size_t alignment);
+// Similar to realloc with behavior void* arr and return value.
 void* farr_expand(void* arr, size_t element_size, size_t align);
 void  farr_free_ext(void* flex_arr, size_t align);
 
@@ -97,6 +98,7 @@ static inline size_t farr_capacity(const void* flex_arr) {
         return true;                                         \
     }
 
+// Similar to realloc with behavior void* arr and return value.
 #define FARR_DEF_PUSH(TYPE, NAME)                                           \
     static inline TYPE* farr_push_##NAME(TYPE* flex_arr, TYPE value) {      \
         size_t len = farr_len(flex_arr);                                    \
