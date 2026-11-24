@@ -123,7 +123,7 @@ void* flex_arr_expand(void* arr) {
 
 */
 
-static void* flex_arr_alloc(size_t capacity, size_t element_size, size_t align, size_t len) {
+static inline void* flex_arr_alloc(size_t capacity, size_t element_size, size_t align, size_t len) {
     // Make sure it's a power of 2
     if(align == 0 || (align & (align - 1)) != 0) {
         return NULL;
@@ -151,30 +151,7 @@ static void* flex_arr_alloc(size_t capacity, size_t element_size, size_t align, 
 
 
 void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
-    // Make sure it's a power of 2
-    if(align == 0 || (align & (align - 1)) != 0) {
-        return NULL;
-    }
-    size_t max_align = flex_arr_max_align(align);
-    size_t extra_spc = flex_arr_ext_space(align);
-    size_t bytes;
-    if(usz_checked_mul(element_size, capacity, &bytes)) {
-        return NULL;
-    }
-    if(usz_checked_add(bytes, extra_spc, &bytes)) {
-        return NULL;
-    }
-
-    char* mem = xmem_aligned(max_align, bytes);
-    if(mem == NULL) {
-        return NULL;
-    }
-    char* start = mem + extra_spc;
-
-    size_t len = 0;
-    memcpy(start - USZ_SZ_ALIGN, &len, sizeof(size_t));
-    memcpy(start - (2 * USZ_SZ_ALIGN), &capacity, sizeof(size_t));
-    return start;
+    return flex_arr_alloc(capacity, element_size, align, 0);
 }
 
 void* flex_arr_expand(void* arr, size_t element_size, size_t align) {
