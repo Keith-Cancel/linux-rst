@@ -25,14 +25,15 @@ typedef struct inc_dir_s {
 
 static FldErr dir_copy_path(const char* path, IncDir* dir);
 static FldErr dir_get_fs_info(IncDir* dir);
+static FldErr dir_is_duplicate(const IncDir* dir_list, const IncDir* dir);
 static void   dir_find_concat_len(IncDir* dir);
 static void   dir_free(IncDir* dir);
 
 // clang-format off
-FARR_DEF_POP(IncDir, dir)
+//FARR_DEF_POP(IncDir, dir)
 FARR_DEF_PUSH(IncDir, dir)
 
-FARR_DEF_POP(FData, fdata)
+//FARR_DEF_POP(FData, fdata)
 FARR_DEF_PUSH(FData, fdata)
 // clang-format on
 
@@ -86,20 +87,54 @@ void fld_free(Fld_t* ldr) {
     xmem_free(ldr);
 }
 
-FldErr fld_add_sys_path(const char* path) {
-    IncDir dir = { 0 };
-    FldErr err = dir_copy_path(path, &dir);
+static FldErr fld_init_dir(IncDir* dir, const char* path) {
+    FldErr err = dir_copy_path(path, dir);
     if(err != FLD_SUCCESS) {
         return err;
     }
-    dir_find_concat_len(&dir);
-    err = dir_get_fs_info(&dir);
+    dir_find_concat_len(dir);
+
+    err = dir_get_fs_info(dir);
+    if(err != FLD_SUCCESS) {
+        dir_free(dir);
+        return err;
+    }
+
+    return FLD_SUCCESS;
+}
+
+FldErr fld_add_sys_dir(Fld_t* ldr, const char* path) {
+    IncDir dir = { 0 };
+    FldErr err = fld_init_dir(&dir, path);
+    if(err != FLD_SUCCESS) {
+        return err;
+    }
+
+    err = dir_is_duplicate(ldr->sys_dirs, &dir);
     if(err != FLD_SUCCESS) {
         dir_free(&dir);
         return err;
     }
 
+    IncDir* tmp = ldr->sys_dirs;
 
+    tmp = farr_push_dir(tmp, dir);
+    if(tmp == NULL) {
+        dir_free(&dir);
+        return FLD_NO_MEM;
+    }
+    ldr->sys_dirs = tmp;
+
+    return FLD_SUCCESS;
+}
+
+FldErr fld_add_user_dir(Fld_t ldr, const char* path) {
+    IncDir dir = { 0 };
+    FldErr err = fld_init_dir(&dir, path);
+    if(err != FLD_SUCCESS) {
+        return err;
+    }
+    // TODO
     return FLD_SUCCESS;
 }
 
@@ -178,6 +213,32 @@ static FldErr dir_get_fs_info(IncDir* dir) {
     }
     dir->dev = st.st_dev;
     dir->ino = st.st_ino;
+
+    return FLD_SUCCESS;
+}
+
+static FldErr dir_is_duplicate(const IncDir* dir_list, const IncDir* dir) {
+    dev_t dev = dir->dev;
+    ino_t ino = dir->ino;
+    // Normally this won't be zero, but something like a FUSE fs
+    // or non-linux fs just could cause funny business.
+    // So just always add the directory so it can still be used.
+    // Even if it leads to duplicate entries and extra work as
+    // a result.
+    if(dir->ino == 0) {
+        return FLD_SUCCESS;
+    }
+
+    // Search for duplicates
+    size_t len = farr_len(dir_list);
+    for(size_t i = 0; i < len; i++) {
+        if(dev != dir_list[i].dev) {
+            continue;
+        }
+        if(ino == dir_list[i].ino) {
+            return FLD_DUP_DIR;
+        }
+    }
 
     return FLD_SUCCESS;
 }

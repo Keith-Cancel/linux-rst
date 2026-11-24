@@ -9,6 +9,7 @@ typedef enum {
     FLD_PERM_DENIED,
     FLD_NON_EXISTENT,
     FLD_NON_DIR,
+    FLD_DUP_DIR,
     FLD_PATH_TOO_LONG,
     FLD_PATH_NOT_WALKABLE,
     FLD_SYS_ERR,
@@ -17,5 +18,7 @@ typedef enum {
 
 Fld_t* fld_new(void);
 void   fld_free(Fld_t* ldr);
+
+FldErr fld_add_sys_dir(Fld_t* ldr, const char* path);
 
 #endif
