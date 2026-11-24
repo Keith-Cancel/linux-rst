@@ -122,27 +122,6 @@ void* flex_arr_expand(void* arr) {
 
 */
 
-// Basically I want a value that be an alignment and size.
-// - Size: >= sizeof(size_t), so it has enough space to store a size_t.
-// - Align: >= alignof(size_t) and is a power of two.
-//
-// This produces a power of two value >= sizeof(size_t).
-// That is also a valid power of two alignment, because
-// it will always a stricter alignment than alignof(size_t).
-// This is because sizeof(size_t) is always a multiple
-// of alignof(size_t) so the next power of two >= sizeof(size_t)
-// will always >= alignof(size_t).
-//
-// e.g. think about a hypothetical system with:
-// - sizeof(size_t) = 6
-// - alignof(size_t) = 2
-// we would need 8 to be that value.
-const size_t USZ_SZ_ALIGN = sizeof(size_t) <= 1   ? 1
-                            : sizeof(size_t) <= 2 ? 2
-                            : sizeof(size_t) <= 4 ? 4
-                            : sizeof(size_t) <= 8 ? 8
-                                                  : 16;
-_Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 maybe a 128 bit machine...");
 
 void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
     // Make sure it's a power of 2
