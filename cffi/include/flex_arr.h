@@ -4,9 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stdalign.h>
 
-#define flex_arr_new(TYPE, capacity) (TYPE*)(flex_arr_new_ext((capacity), sizeof(TYPE), alignof(TYPE)))
+#define flex_arr_new(TYPE, capacity) (TYPE*)(flex_arr_new_ext((capacity), sizeof(TYPE), _Alignof(TYPE)))
 
 void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t alignment);
 void* flex_arr_expand(void* arr, size_t element_size, size_t align);
@@ -96,6 +95,22 @@ static inline size_t flex_arr_capacity(const void* flex_arr) {
         char* ptr = ((char*)flex_arr) - USZ_SZ_ALIGN;            \
         memcpy(ptr, &len, sizeof(size_t));                       \
         return true;                                             \
+    }
+
+#define def_flex_arr_push_grow(TYPE, NAME)                                      \
+    static inline TYPE* flex_arr_push_grow_##NAME(TYPE* flex_arr, TYPE value) { \
+        size_t len = flex_arr_len(flex_arr);                                    \
+        if(len >= flex_arr_capacity(flex_arr)) {                                \
+            flex_arr = flex_arr_expand(flex_arr, sizeof(TYPE), _Alignof(TYPE)); \
+            if(flex_arr == NULL) {                                              \
+                return NULL;                                                    \
+            }                                                                   \
+        }                                                                       \
+        flex_arr[len]  = value;                                                 \
+        len           += 1;                                                     \
+        char* ptr      = ((char*)flex_arr) - USZ_SZ_ALIGN;                      \
+        memcpy(ptr, &len, sizeof(size_t));                                      \
+        return flex_arr;                                                        \
     }
 
 #endif
