@@ -60,11 +60,11 @@ void* farr_expand(void* arr, size_t element_size, size_t align) {
     size_t amt = len * element_size;
     memcpy(start, arr, amt);
 
-    farr_free(arr, align);
+    farr_free_ext(arr, align);
     return start;
 }
 
-void farr_free(void* arr, size_t align) {
+void farr_free_ext(void* arr, size_t align) {
     if(arr == NULL) {
         return;
     }

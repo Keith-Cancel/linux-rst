@@ -6,10 +6,11 @@
 #include <stdbool.h>
 
 #define farr_new(TYPE, capacity) (TYPE*)(farr_new_ext((capacity), sizeof(TYPE), _Alignof(TYPE)))
+#define farr_free(TYPE, array)   farr_free_ext((array), _Alignof(TYPE))
 
 void* farr_new_ext(size_t capacity, size_t element_size, size_t alignment);
 void* farr_expand(void* arr, size_t element_size, size_t align);
-void  farr_free(void* flex_arr, size_t align);
+void  farr_free_ext(void* flex_arr, size_t align);
 
 // Basically I want a value that be an alignment and size.
 // - Size: >= sizeof(size_t), so it has enough space to store a size_t.
