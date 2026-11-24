@@ -12,34 +12,6 @@ void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t alignment);
 void* flex_arr_expand(void* arr, size_t element_size, size_t align);
 void  flex_arr_free(void* flex_arr, size_t align);
 
-/*
-#define def_flex_arr_push(TYPE, NAME)                              \
-    static bool flex_arr_push_##NAME(TYPE* flex_arr, TYPE value) { \
-        size_t len = flex_arr_len(flex_arr);                       \
-        if(len >= flex_arr_capacity(flex_arr)) {                   \
-            return false;                                          \
-        }                                                          \
-        flex_arr[len]  = value;                                    \
-        len           += 1;                                        \
-        char* ptr      = ((char*)flex_arr) - sizeof(size_t);       \
-        memcpy(ptr, &len, sizeof(size_t));                         \
-        return true;                                               \
-    }
-
-#define def_flex_arr_pop(TYPE, NAME)                             \
-    static bool flex_arr_pop_##NAME(TYPE* flex_arr, TYPE* out) { \
-        size_t len = flex_arr_len(flex_arr);                     \
-        if(len < 1) {                                            \
-            return false;                                        \
-        }                                                        \
-        len       -= 1;                                          \
-        *out       = flex_arr[len];                              \
-        char* ptr  = ((char*)flex_arr) - sizeof(size_t);         \
-        memcpy(ptr, &len, sizeof(size_t));                       \
-        return true;                                             \
-    }
-*/
-
 // Basically I want a value that be an alignment and size.
 // - Size: >= sizeof(size_t), so it has enough space to store a size_t.
 // - Align: >= alignof(size_t) and is a power of two.
@@ -97,5 +69,33 @@ static inline size_t flex_arr_capacity(const void* flex_arr) {
     memcpy(&cap, ptr - (2 * USZ_SZ_ALIGN), sizeof(size_t));
     return cap;
 }
+
+#define def_flex_arr_push(TYPE, NAME)                              \
+    static bool flex_arr_push_##NAME(TYPE* flex_arr, TYPE value) { \
+        size_t len = flex_arr_len(flex_arr);                       \
+        if(len >= flex_arr_capacity(flex_arr)) {                   \
+            return false;                                          \
+        }                                                          \
+        flex_arr[len]  = value;                                    \
+        len           += 1;                                        \
+        char* ptr      = ((char*)flex_arr) - USZ_SZ_ALIGN;         \
+        memcpy(ptr, &len, sizeof(size_t));                         \
+        return true;                                               \
+    }
+
+#define def_flex_arr_pop(TYPE, NAME)                             \
+    static bool flex_arr_pop_##NAME(TYPE* flex_arr, TYPE* out) { \
+        size_t len = flex_arr_len(flex_arr);                     \
+        if(len < 1) {                                            \
+            return false;                                        \
+        }                                                        \
+        len -= 1;                                                \
+        if(out != NULL) {                                        \
+            *out = flex_arr[len];                                \
+        }                                                        \
+        char* ptr = ((char*)flex_arr) - USZ_SZ_ALIGN;            \
+        memcpy(ptr, &len, sizeof(size_t));                       \
+        return true;                                             \
+    }
 
 #endif
