@@ -6,6 +6,12 @@ typedef struct file_loader_s Fld_t;
 typedef enum {
     FLD_SUCCESS = 0,
     FLD_NO_MEM,
+    FLD_PERM_DENIED,
+    FLD_NON_EXISTENT,
+    FLD_NON_DIR,
+    FLD_PATH_TOO_LONG,
+    FLD_PATH_NOT_WALKABLE,
+    FLD_SYS_ERR,
     FLD_INVALID_ARG,
 } FldErr;
 

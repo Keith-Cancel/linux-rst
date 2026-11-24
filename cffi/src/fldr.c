@@ -1,6 +1,10 @@
+#include <errno.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "fldr.h"
 #include "flex_arr.h"
@@ -13,20 +17,28 @@ typedef struct file_data_s {
 
 typedef struct inc_dir_s {
     uint8_t* path;
-    size_t   full_len;
-    size_t   concat_len;
+    size_t   raw_len;
+    size_t   con_len;
+    dev_t    dev;
+    ino_t    ino;
 } IncDir;
 
-static FldErr copy_path(const char* path, IncDir* dir);
+static FldErr dir_copy_path(const char* path, IncDir* dir);
+static FldErr dir_get_fs_info(IncDir* dir);
 static void   dir_find_concat_len(IncDir* dir);
+static void   dir_free(IncDir* dir);
 
 // clang-format off
+FARR_DEF_POP(IncDir, dir)
+FARR_DEF_PUSH(IncDir, dir)
+
 FARR_DEF_POP(FData, fdata)
 FARR_DEF_PUSH(FData, fdata)
 // clang-format on
 
 struct file_loader_s {
-    FData* files;
+    FData*  files;
+    IncDir* sys_dirs;
 };
 
 Fld_t* fld_new(void) {
@@ -38,6 +50,13 @@ Fld_t* fld_new(void) {
     if(ldr->files == NULL) {
         return NULL;
     }
+
+    ldr->sys_dirs = farr_new(IncDir, 32);
+    if(ldr->sys_dirs == NULL) {
+        farr_free(FData, ldr->files);
+        return NULL;
+    }
+
     return ldr;
 }
 
@@ -45,34 +64,46 @@ void fld_free(Fld_t* ldr) {
     if(ldr == NULL) {
         return;
     }
-    if(ldr->files == NULL) {
-        free(ldr);
-        return;
-    }
-    size_t cnt = farr_len(ldr->files);
-    for(size_t i = 0; i < cnt; i++) {
-        uint8_t* data = ldr->files[i].data;
-        if(data != NULL) {
-            xmem_free(data);
+    if(ldr->files != NULL) {
+        size_t cnt = farr_len(ldr->files);
+        for(size_t i = 0; i < cnt; i++) {
+            uint8_t* data = ldr->files[i].data;
+            if(data != NULL) {
+                xmem_free(data);
+            }
         }
+        farr_free(FData, ldr->files);
     }
-    farr_free(FData, ldr->files);
+
+    if(ldr->sys_dirs != NULL) {
+        size_t cnt = farr_len(ldr->sys_dirs);
+        for(size_t i = 0; i < cnt; i++) {
+            dir_free(&(ldr->sys_dirs[i]));
+        }
+        farr_free(IncDir, ldr->sys_dirs);
+    }
+
     xmem_free(ldr);
 }
 
 FldErr fld_add_sys_path(const char* path) {
     IncDir dir = { 0 };
-    FldErr err = copy_path(path, &dir);
+    FldErr err = dir_copy_path(path, &dir);
     if(err != FLD_SUCCESS) {
         return err;
     }
     dir_find_concat_len(&dir);
+    err = dir_get_fs_info(&dir);
+    if(err != FLD_SUCCESS) {
+        dir_free(&dir);
+        return err;
+    }
 
 
     return FLD_SUCCESS;
 }
 
-static FldErr copy_path(const char* path, IncDir* dir) {
+static FldErr dir_copy_path(const char* path, IncDir* dir) {
     if(path == NULL) {
         return FLD_INVALID_ARG;
     }
@@ -86,17 +117,67 @@ static FldErr copy_path(const char* path, IncDir* dir) {
         return FLD_NO_MEM;
     }
     memcpy(mem, path, len + 1);
-    dir->path     = mem;
-    dir->full_len = len;
+    dir->path    = mem;
+    dir->raw_len = len;
     return FLD_SUCCESS;
 }
 
+static void dir_free(IncDir* dir) {
+    if(dir == NULL) {
+        return;
+    }
+    if(dir->path != NULL) {
+        xmem_free(dir->path);
+    }
+    memset(dir, 0, sizeof(IncDir));
+}
+
 static void dir_find_concat_len(IncDir* dir) {
-    size_t   len  = dir->full_len;
+    size_t   len  = dir->raw_len;
     uint8_t* path = dir->path;
     // I only care about trailing slashes.
     while(len > 1 && path[len - 1] == '/') {
         len -= 1;
     }
-    dir->concat_len = len;
+    dir->con_len = len;
+}
+
+static FldErr dir_get_fs_info(IncDir* dir) {
+    // Larger than linuxs PATH_MAX so should be large enough
+    // for most any path out there.
+    char   buff[8196];
+    size_t len = dir->con_len;
+    if(len > (sizeof(buff) - 1)) {
+        return FLD_PATH_TOO_LONG;
+    }
+    memcpy(buff, dir->path, len);
+    buff[len] = '\0';
+
+    struct stat st = { 0 };
+    if(stat(buff, &st) < 0) {
+        int err = errno;
+        switch(err) {
+            case EACCES:
+                return FLD_PERM_DENIED;
+            case ENOENT:
+                return FLD_NON_EXISTENT;
+            case ELOOP:
+            case ENOTDIR:
+                return FLD_PATH_NOT_WALKABLE;
+            case ENAMETOOLONG:
+                return FLD_PATH_TOO_LONG;
+            case ENOMEM:
+                return FLD_NO_MEM;
+            default:
+                fprintf(stderr, "error: Failed to stat() '%s' Errno(%d)\n", buff, err);
+                return FLD_SYS_ERR;
+        }
+    }
+    if(S_ISDIR(st.st_mode) == 0) {
+        return FLD_NON_DIR;
+    }
+    dir->dev = st.st_dev;
+    dir->ino = st.st_ino;
+
+    return FLD_SUCCESS;
 }
