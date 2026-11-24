@@ -5,6 +5,7 @@
 
 #include "flex_arr.h"
 #include "math_chk.h"
+#include "xmem.h"
 /*
 // In memory layout
 // +---------+-----------+-----------+---------+-----+-----+----------------------+
@@ -173,7 +174,7 @@ void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
         return NULL;
     }
 
-    uint8_t* mem = aligned_alloc(max_align, bytes);
+    uint8_t* mem = xmem_aligned(max_align, bytes);
     if(mem == NULL) {
         return NULL;
     }
@@ -194,5 +195,5 @@ void flex_arr_free(void* arr, size_t align) {
         extra_spc = align;
     }
     uint8_t* ptr = (uint8_t*)arr;
-    free(ptr - extra_spc);
+    xmem_free(ptr - extra_spc);
 }
