@@ -23,8 +23,8 @@ rule touch
 
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
 build $obj_dir/main.o:       cc ./src/main.c
-build $obj_dir/fldr.o:       cc ./src/fldr.c     | ./include/fldr.h ./include/math_chk.h
-build $obj_dir/flex_arr.o:   cc ./src/flex_arr.c | ./include/flex_arr.h ./include/math_chk.h
+build $obj_dir/fldr.o:       cc ./src/fldr.c     | ./include/fldr.h     ./include/math_chk.h 
+build $obj_dir/flex_arr.o:   cc ./src/flex_arr.c | ./include/flex_arr.h ./include/math_chk.h ./include/xmem.h
 build $obj_dir/xmem.o:       cc ./src/xmem.c     | ./include/xmem.h
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
