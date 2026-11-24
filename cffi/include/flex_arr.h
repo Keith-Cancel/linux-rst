@@ -77,4 +77,22 @@ static const size_t USZ_SZ_ALIGN = sizeof(size_t) <= 1 ? 1 :
 // clang-format on
 _Static_assert(sizeof(size_t) <= 16, "Unexpected sizeof(size_t) larger 16 more than a 128 bit machine...");
 
+// If align <= USZ_SZ_ALIGN:
+// - alignment:   USZ_SZ_ALIGN
+// - extra space: 2 * USZ_SZ_ALIGN;
+//
+// if align > USZ_SZ_ALIGN:
+// - alignment:   align
+// - extra space: align
+// This works because the next alignment larger
+// always be 2 * USZ_SZ_ALIGN so can store two
+// USZ_SZ_ALIGN (e.g size_t)
+static inline size_t flex_arr_max_align(size_t align) {
+    return align > USZ_SZ_ALIGN ? align : USZ_SZ_ALIGN;
+}
+
+static inline size_t flex_arr_ext_space(size_t align) {
+    return align > USZ_SZ_ALIGN ? align : 2 * USZ_SZ_ALIGN;
+}
+
 #endif

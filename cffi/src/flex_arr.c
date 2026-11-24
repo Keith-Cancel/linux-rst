@@ -8,9 +8,10 @@
 #include "xmem.h"
 /*
 // In memory layout
-// +---------+-----------+-----------+---------+-----+-----+----------------------+
-// | padding | alloc_off | max_align | el_size | cap | len | DATA[0]..DATA[CAP-1] |
-// +---------+-----------+-----------+---------+-----+-----+----------------------+
+// Cap and len use USZ_SZ_ALIGN amount of space.
+// +---------+-----+-----+----------------------+
+// | padding | cap | len | DATA[0]..DATA[CAP-1] |
+// +---------+-----+-----+----------------------+
 
 static const size_t HDR_SZ = 5 * sizeof(size_t);
 
@@ -122,29 +123,13 @@ void* flex_arr_expand(void* arr) {
 
 */
 
-
 void* flex_arr_new_ext(size_t capacity, size_t element_size, size_t align) {
     // Make sure it's a power of 2
     if(align == 0 || (align & (align - 1)) != 0) {
         return NULL;
     }
-    // If align <= USZ_SZ_ALIGN:
-    // - alignment:   USZ_SZ_ALIGN
-    // - extra space: 2 * USZ_SZ_ALIGN;
-    //
-    // if align > USZ_SZ_ALIGN:
-    // - alignment:   align
-    // - extra space: align
-    // This works because the next alignment larger
-    // always be 2 * USZ_SZ_ALIGN so can store two
-    // USZ_SZ_ALIGN (e.g size_t)
-    size_t max_align = USZ_SZ_ALIGN;
-    size_t extra_spc = 2 * USZ_SZ_ALIGN;
-    if(align > USZ_SZ_ALIGN) {
-        max_align = align;
-        extra_spc = align;
-    }
-
+    size_t max_align = flex_arr_max_align(align);
+    size_t extra_spc = flex_arr_ext_space(align);
     size_t bytes;
     if(usz_checked_mul(element_size, capacity, &bytes)) {
         return NULL;
@@ -169,10 +154,7 @@ void flex_arr_free(void* arr, size_t align) {
     if(arr == NULL) {
         return;
     }
-    size_t extra_spc = 2 * USZ_SZ_ALIGN;
-    if(align > USZ_SZ_ALIGN) {
-        extra_spc = align;
-    }
-    uint8_t* ptr = (uint8_t*)arr;
+    size_t   extra_spc = flex_arr_ext_space(align);
+    uint8_t* ptr       = (uint8_t*)arr;
     xmem_free(ptr - extra_spc);
 }
