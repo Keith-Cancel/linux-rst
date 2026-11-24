@@ -2,17 +2,20 @@
 #include <stdlib.h>
 
 #include "fldr.h"
-
+#include "flex_arr.h"
 
 typedef struct file_data_s {
     uint8_t* data;
     size_t   length;
 } FData;
 
+// clang-format off
+FARR_DEF_POP(FData, fdata)
+FARR_DEF_PUSH(FData, fdata)
+// clang-format on
+
 struct file_loader_s {
     FData* files;
-    size_t count;
-    size_t cap;
 };
 
 Fldr_t* fldr_new() {
@@ -20,17 +23,10 @@ Fldr_t* fldr_new() {
     if(ldr == NULL) {
         return NULL;
     }
-    size_t cap = 64;
-
-    FData* list = malloc(cap * sizeof(FData));
-    if(list == NULL) {
-        free(ldr);
+    ldr->files = farr_new(FData, 64);
+    if(ldr->files == NULL) {
         return NULL;
     }
-
-    ldr->cap   = cap;
-    ldr->files = list;
-    ldr->count = 0;
     return ldr;
 }
 
@@ -42,12 +38,13 @@ void fldr_free(Fldr_t* ldr) {
         free(ldr);
         return;
     }
-    for(size_t i = 0; i < ldr->count; i++) {
-        FData* file = (ldr->files + i);
-        if(file->data != NULL) {
-            free(file->data);
+    size_t cnt = farr_len(ldr->files);
+    for(size_t i = 0; i < cnt; i++) {
+        uint8_t* data = ldr->files[i].data;
+        if(data != NULL) {
+            free(data);
         }
     }
-    free(ldr->files);
+    farr_free(FData, ldr->files);
     free(ldr);
 }
