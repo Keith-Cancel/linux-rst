@@ -10,6 +10,8 @@
 #include "flex_arr.h"
 #include "xmem.h"
 
+#define PATH_BUFF 8192
+
 typedef struct file_data_s {
     uint8_t* data;
     size_t   length;
@@ -21,10 +23,11 @@ typedef struct fs_info_s {
 } FsInfo;
 
 typedef struct inc_dir_s {
-    char*  path;
-    size_t raw_len;
-    size_t con_len;
-    FsInfo fs;
+    char*    path;
+    FsInfo   fs;
+    uint16_t raw_len;
+    uint16_t con_len;
+    bool     ignore;
 } IncDir;
 
 static FldErr dir_init(IncDir* dir, const char* path);
@@ -135,6 +138,10 @@ static FldErr dir_init(IncDir* dir, const char* path) {
         path = ".";
         plen = 1;
     }
+    if(plen > (PATH_BUFF - 1)) {
+        return FLD_PATH_TOO_LONG;
+    }
+
     dir->raw_len = plen;
     dir->con_len = path_concat_len(path, plen);
 
@@ -199,7 +206,7 @@ static size_t path_concat_len(const char* path, size_t len) {
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
     // Larger than linuxs PATH_MAX so should be large enough
     // for most any path out there.
-    char buff[8196];
+    char buff[PATH_BUFF];
     if(len > (sizeof(buff) - 1)) {
         return FLD_PATH_TOO_LONG;
     }
