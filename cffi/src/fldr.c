@@ -15,19 +15,24 @@ typedef struct file_data_s {
     size_t   length;
 } FData;
 
+typedef struct fs_info_s {
+    dev_t dev;
+    ino_t ino;
+} FsInfo;
+
 typedef struct inc_dir_s {
-    uint8_t* path;
-    size_t   raw_len;
-    size_t   con_len;
-    dev_t    dev;
-    ino_t    ino;
+    char*  path;
+    size_t raw_len;
+    size_t con_len;
+    FsInfo fs;
 } IncDir;
 
-static FldErr dir_copy_path(const char* path, IncDir* dir);
-static FldErr dir_get_fs_info(IncDir* dir);
-static FldErr dir_is_duplicate(const IncDir* dir_list, const IncDir* dir);
-static void   dir_find_concat_len(IncDir* dir);
+static FldErr dir_init(IncDir* dir, const char* path);
+static FldErr dir_is_duplicate(const IncDir* dir, const IncDir* dir_list, size_t len);
 static void   dir_free(IncDir* dir);
+
+static size_t path_concat_len(const char* path, size_t len);
+static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
 
 // clang-format off
 //FARR_DEF_POP(IncDir, dir)
@@ -87,38 +92,21 @@ void fld_free(Fld_t* ldr) {
     xmem_free(ldr);
 }
 
-static FldErr fld_init_dir(IncDir* dir, const char* path) {
-    FldErr err = dir_copy_path(path, dir);
-    if(err != FLD_SUCCESS) {
-        return err;
-    }
-    dir_find_concat_len(dir);
-
-    err = dir_get_fs_info(dir);
-    if(err != FLD_SUCCESS) {
-        dir_free(dir);
-        return err;
-    }
-
-    return FLD_SUCCESS;
-}
-
 FldErr fld_add_sys_dir(Fld_t* ldr, const char* path) {
     IncDir dir = { 0 };
-    FldErr err = fld_init_dir(&dir, path);
+    FldErr err = dir_init(&dir, path);
     if(err != FLD_SUCCESS) {
         return err;
     }
 
-    err = dir_is_duplicate(ldr->sys_dirs, &dir);
+    err = dir_is_duplicate(&dir, ldr->sys_dirs, farr_len(ldr->sys_dirs));
     if(err != FLD_SUCCESS) {
         dir_free(&dir);
         return err;
     }
 
     IncDir* tmp = ldr->sys_dirs;
-
-    tmp = farr_push_dir(tmp, dir);
+    tmp         = farr_push_dir(tmp, dir);
     if(tmp == NULL) {
         dir_free(&dir);
         return FLD_NO_MEM;
@@ -128,9 +116,9 @@ FldErr fld_add_sys_dir(Fld_t* ldr, const char* path) {
     return FLD_SUCCESS;
 }
 
-FldErr fld_add_user_dir(Fld_t ldr, const char* path) {
+FldErr fld_add_user_dir(Fld_t* ldr, const char* path) {
     IncDir dir = { 0 };
-    FldErr err = fld_init_dir(&dir, path);
+    FldErr err = dir_init(&dir, path);
     if(err != FLD_SUCCESS) {
         return err;
     }
@@ -138,22 +126,32 @@ FldErr fld_add_user_dir(Fld_t ldr, const char* path) {
     return FLD_SUCCESS;
 }
 
-static FldErr dir_copy_path(const char* path, IncDir* dir) {
+static FldErr dir_init(IncDir* dir, const char* path) {
     if(path == NULL) {
         return FLD_INVALID_ARG;
     }
-    size_t len = strlen(path);
-    if(len == 0) {
-        len  = 1;
+    size_t plen = strlen(path);
+    if(plen == 0) {
         path = ".";
+        plen = 1;
     }
-    uint8_t* mem = xmem_alloc(len + 1);
+    dir->raw_len = plen;
+    dir->con_len = path_concat_len(path, plen);
+
+    FsInfo info = { 0 };
+    FldErr err  = path_get_fs_info(path, dir->con_len, &info);
+    if(err != FLD_SUCCESS) {
+        return err;
+    }
+    dir->fs = info;
+
+    size_t bytes = dir->raw_len + 1;
+    char*  mem   = xmem_alloc(bytes);
     if(mem == NULL) {
         return FLD_NO_MEM;
     }
-    memcpy(mem, path, len + 1);
-    dir->path    = mem;
-    dir->raw_len = len;
+    memcpy(mem, path, bytes);
+    dir->path = mem;
     return FLD_SUCCESS;
 }
 
@@ -167,25 +165,45 @@ static void dir_free(IncDir* dir) {
     memset(dir, 0, sizeof(IncDir));
 }
 
-static void dir_find_concat_len(IncDir* dir) {
-    size_t   len  = dir->raw_len;
-    uint8_t* path = dir->path;
+static FldErr dir_is_duplicate(const IncDir* dir, const IncDir* dir_list, size_t len) {
+    dev_t dev = dir->fs.dev;
+    ino_t ino = dir->fs.ino;
+    // Normally this won't be zero, but something like a FUSE fs
+    // or non-linux fs just could cause funny business.
+    // So just always add the directory so it can still be used.
+    // Even if it leads to duplicate entries and extra work as
+    // a result.
+    if(ino == 0) {
+        return FLD_SUCCESS;
+    }
+    // Search for duplicates
+    for(size_t i = 0; i < len; i++) {
+        if(dev != dir_list[i].fs.dev) {
+            continue;
+        }
+        if(ino == dir_list[i].fs.ino) {
+            return FLD_DUP_DIR;
+        }
+    }
+    return FLD_SUCCESS;
+}
+
+static size_t path_concat_len(const char* path, size_t len) {
     // I only care about trailing slashes.
     while(len > 1 && path[len - 1] == '/') {
         len -= 1;
     }
-    dir->con_len = len;
+    return len;
 }
 
-static FldErr dir_get_fs_info(IncDir* dir) {
+static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
     // Larger than linuxs PATH_MAX so should be large enough
     // for most any path out there.
-    char   buff[8196];
-    size_t len = dir->con_len;
+    char buff[8196];
     if(len > (sizeof(buff) - 1)) {
         return FLD_PATH_TOO_LONG;
     }
-    memcpy(buff, dir->path, len);
+    memcpy(buff, path, len);
     buff[len] = '\0';
 
     struct stat st = { 0 };
@@ -211,34 +229,8 @@ static FldErr dir_get_fs_info(IncDir* dir) {
     if(S_ISDIR(st.st_mode) == 0) {
         return FLD_NON_DIR;
     }
-    dir->dev = st.st_dev;
-    dir->ino = st.st_ino;
-
-    return FLD_SUCCESS;
-}
-
-static FldErr dir_is_duplicate(const IncDir* dir_list, const IncDir* dir) {
-    dev_t dev = dir->dev;
-    ino_t ino = dir->ino;
-    // Normally this won't be zero, but something like a FUSE fs
-    // or non-linux fs just could cause funny business.
-    // So just always add the directory so it can still be used.
-    // Even if it leads to duplicate entries and extra work as
-    // a result.
-    if(dir->ino == 0) {
-        return FLD_SUCCESS;
-    }
-
-    // Search for duplicates
-    size_t len = farr_len(dir_list);
-    for(size_t i = 0; i < len; i++) {
-        if(dev != dir_list[i].dev) {
-            continue;
-        }
-        if(ino == dir_list[i].ino) {
-            return FLD_DUP_DIR;
-        }
-    }
+    info->dev = st.st_dev;
+    info->ino = st.st_ino;
 
     return FLD_SUCCESS;
 }
