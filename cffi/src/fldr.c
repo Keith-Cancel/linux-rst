@@ -12,6 +12,10 @@
 
 #define PATH_BUFF 8192
 
+#define DIR_IS_QUO 0
+#define DIR_IS_INC 1
+#define DIR_IS_SYS 2
+
 typedef struct fs_info_s {
     dev_t dev;
     ino_t ino;
@@ -36,13 +40,15 @@ static void    dir_free(IncDir* dir);
 
 static FldErr fld_add_dir(IncDir** list, const char* path);
 static void   fld_free_dir_list(IncDir* list);
+static bool   fld_dup_in_lower_list(const Fld_t* ldr, const IncDir* dir, unsigned kind);
 
 static size_t path_concat_len(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
 
 // clang-format off
-//FARR_DEF_POP(IncDir, dir)
+FARR_DEF_POP(IncDir, dir)
 FARR_DEF_PUSH(IncDir, dir)
+FARR_DEF_LAST(IncDir, dir)
 
 //FARR_DEF_POP(FData, fdata)
 FARR_DEF_PUSH(FData, fdata)
@@ -118,6 +124,13 @@ FldErr fld_add_quote_dir(Fld_t* ldr, const char* path) {
         return err;
     }
 
+    IncDir* dir = farr_last_dir(ldr->quo_dirs);
+    // Check if it's a dup in any lower level lists.
+    if(fld_dup_in_lower_list(ldr, dir, DIR_IS_QUO)) {
+        farr_pop_dir(ldr->quo_dirs, NULL);
+        return FLD_DUP_DIR;
+    }
+
     return FLD_SUCCESS;
 }
 
@@ -125,6 +138,13 @@ FldErr fld_add_inc_dir(Fld_t* ldr, const char* path) {
     FldErr err = fld_add_dir(&(ldr->inc_dirs), path);
     if(err != FLD_SUCCESS) {
         return err;
+    }
+
+    IncDir* dir = farr_last_dir(ldr->inc_dirs);
+    // Check if it's a dup in any lower level lists.
+    if(fld_dup_in_lower_list(ldr, dir, DIR_IS_QUO)) {
+        farr_pop_dir(ldr->inc_dirs, NULL);
+        return FLD_DUP_DIR;
     }
 
     return FLD_SUCCESS;
@@ -174,6 +194,28 @@ static void fld_free_dir_list(IncDir* list) {
     }
     farr_free(IncDir, list);
 }
+
+static bool fld_dup_in_lower_list(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
+    size_t len;
+    switch(0) {
+        case DIR_IS_QUO:
+            len = farr_len(ldr->inc_dirs);
+            if(dir_dup_index(dir, ldr->inc_dirs, len) >= 0) {
+                return true;
+            }
+        case DIR_IS_INC:
+            len = farr_len(ldr->sys_dirs);
+            if(dir_dup_index(dir, ldr->sys_dirs, len) >= 0) {
+                return true;
+            }
+        case DIR_IS_SYS:
+            // Currently nothing below sys to check.
+        default:
+            break;
+    }
+    return false;
+}
+
 
 static FldErr dir_init(IncDir* dir, const char* path) {
     if(path == NULL) {
