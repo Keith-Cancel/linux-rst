@@ -43,6 +43,7 @@ static void    dir_free(IncDir* dir);
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind);
 static void   fld_free_dir_list(IncDir* list);
 static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
+static bool   fld_ignore_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
 
 static size_t path_concat_len(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
@@ -134,6 +135,7 @@ static void fld_free_dir_list(IncDir* list) {
     farr_free(IncDir, list);
 }
 
+// Checks for duplicate directories at kind, and kinds of higher value.
 static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
     for(unsigned i = kind; i < DIR_KIND_CNT; i++) {
         size_t len = farr_len(ldr->dirs[i]);
@@ -142,6 +144,22 @@ static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind)
         }
     }
     return false;
+}
+
+// Checks for duplicate directories for kinds with a lower value than current kind.
+// If it finds any it sets them to be ignored.
+static bool fld_ignore_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
+    bool ignored = false;
+    for(unsigned i = 0; i < kind; i++) {
+        size_t  len = farr_len(ldr->dirs[i]);
+        ssize_t idx = dir_dup_index(dir, ldr->dirs[i], len);
+        if(idx < 0) {
+            continue;
+        }
+        ignored                  = true;
+        ldr->dirs[i][idx].ignore = true;
+    }
+    return ignored;
 }
 
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
@@ -168,6 +186,10 @@ static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
     }
     ldr->dirs[kind] = ptr;
 
+
+    if(fld_ignore_duplicate(ldr, &dir, kind)) {
+        return FLD_IGNORE_DIR;
+    }
     return FLD_SUCCESS;
 }
 
@@ -216,7 +238,6 @@ static void dir_free(IncDir* dir) {
     memset(dir, 0, sizeof(IncDir));
 }
 
-// Checks for duplicate directories in kind and above.
 static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len) {
     dev_t dev = dir->fs.dev;
     ino_t ino = dir->fs.ino;
@@ -230,13 +251,15 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
     }
     // Search for duplicates
     for(size_t i = 0; i < len; i++) {
-        if(dir_list[i].ignore) {
+        ino_t cur_ino = dir_list[i].fs.ino;
+
+        if(dir_list[i].ignore || cur_ino == 0) {
             continue;
         }
         if(dev != dir_list[i].fs.dev) {
             continue;
         }
-        if(ino == dir_list[i].fs.ino) {
+        if(ino == cur_ino) {
             return i;
         }
     }

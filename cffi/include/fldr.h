@@ -10,6 +10,7 @@ typedef enum {
     FLD_NON_EXISTENT,
     FLD_NON_DIR,
     FLD_DUP_DIR,
+    FLD_IGNORE_DIR,
     FLD_PATH_TOO_LONG,
     FLD_PATH_NOT_WALKABLE,
     FLD_SYS_ERR,
