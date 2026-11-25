@@ -197,7 +197,7 @@ static void fld_free_dir_list(IncDir* list) {
 
 static bool fld_dup_in_lower_list(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
     size_t len;
-    switch(0) {
+    switch(kind) {
         case DIR_IS_QUO:
             len = farr_len(ldr->inc_dirs);
             if(dir_dup_index(dir, ldr->inc_dirs, len) >= 0) {
