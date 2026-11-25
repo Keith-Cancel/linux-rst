@@ -19,6 +19,8 @@ typedef enum {
 Fld_t* fld_new(void);
 void   fld_free(Fld_t* ldr);
 
+FldErr fld_add_quote_dir(Fld_t* ldr, const char* path);
+FldErr fld_add_inc_dir(Fld_t* ldr, const char* path);
 FldErr fld_add_sys_dir(Fld_t* ldr, const char* path);
 
 #endif
