@@ -115,13 +115,13 @@ static inline size_t farr_capacity(const void* flex_arr) {
         return flex_arr;                                                    \
     }
 
-#define FARR_DEF_LAST(TYPE, NAME)                               \
-    static TYPE* farr_last_##NAME(TYPE* flex_arr, TYPE value) { \
-        size_t len = farr_len(flex_arr);                        \
-        if(len < 1) {                                           \
-            return NULL;                                        \
-        }                                                       \
-        return flex_arr + (len - 1);                            \
+#define FARR_DEF_LAST(TYPE, NAME)                   \
+    static TYPE* farr_last_##NAME(TYPE* flex_arr) { \
+        size_t len = farr_len(flex_arr);            \
+        if(len < 1) {                               \
+            return NULL;                            \
+        }                                           \
+        return flex_arr + (len - 1);                \
     }
 
 
