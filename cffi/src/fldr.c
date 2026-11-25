@@ -280,14 +280,14 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
 // It will always retain the root/drive etc...
 // So it will never be below 1 so like unix a root path stays "/".
 static size_t path_rtrim_sep_len(const char* path, size_t len) {
-    // Thase of just `//` thoughts.
+    // The case of a bare `//` thoughts:
     // POSIX says just `//` at the start of a path is implementation
     // defined. However, if I think about concatenating later
     // `//` + `foo/bar.h` for something like #include <foo/bar.h>.
-    // The only thing I think that could be is like a network share
+    // The only obvious thing I could think of is a network share
     // with a host of `foo`, and a share of `bar.h`. That does not
     // really seem sane. I probably, just want root. Some bizarre
-    // FUSE fs could be be something more sane, but still.
+    // FUSE fs could do be something more sane, but still.
     // So I don't think I want to special case just `//`.
 
     // I only care about trailing slashes.
