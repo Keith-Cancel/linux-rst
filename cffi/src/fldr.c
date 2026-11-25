@@ -16,6 +16,8 @@
 #define DIR_IS_INC 1
 #define DIR_IS_SYS 2
 
+#define DIR_KIND_CNT 3
+
 typedef struct fs_info_s {
     dev_t dev;
     ino_t ino;
@@ -38,59 +40,48 @@ static FldErr  dir_init(IncDir* dir, const char* path);
 static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len);
 static void    dir_free(IncDir* dir);
 
-static FldErr fld_add_dir(IncDir** list, const char* path);
+static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind);
 static void   fld_free_dir_list(IncDir* list);
-static bool   fld_dup_in_lower_list(const Fld_t* ldr, const IncDir* dir, unsigned kind);
+static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
 
 static size_t path_concat_len(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
 
 // clang-format off
-FARR_DEF_POP(IncDir, dir)
+//FARR_DEF_POP(IncDir, dir)
 FARR_DEF_PUSH(IncDir, dir)
-FARR_DEF_LAST(IncDir, dir)
+//FARR_DEF_LAST(IncDir, dir)
 
 //FARR_DEF_POP(FData, fdata)
-FARR_DEF_PUSH(FData, fdata)
+//FARR_DEF_PUSH(FData, fdata)
 // clang-format on
 
 struct file_loader_s {
     FData*  files;
-    IncDir* quo_dirs;
-    IncDir* inc_dirs;
-    IncDir* sys_dirs;
+    IncDir* dirs[3];
 };
+
+// ========== File Loader Public ==========
 
 Fld_t* fld_new(void) {
     Fld_t* ldr = xmem_alloc(sizeof(Fld_t));
     if(ldr == NULL) {
         return NULL;
     }
+    memset(ldr, 0, sizeof(Fld_t));
 
-    ldr->files = farr_new(FData, 64);
+    ldr->files = farr_new(FData, 32);
     if(ldr->files == NULL) {
+        xmem_free(ldr);
         return NULL;
     }
 
-    ldr->sys_dirs = farr_new(IncDir, 32);
-    if(ldr->sys_dirs == NULL) {
-        farr_free(FData, ldr->files);
-        return NULL;
-    }
-
-    ldr->inc_dirs = farr_new(IncDir, 32);
-    if(ldr->inc_dirs == NULL) {
-        farr_free(FData, ldr->sys_dirs);
-        farr_free(FData, ldr->files);
-        return NULL;
-    }
-
-    ldr->quo_dirs = farr_new(IncDir, 32);
-    if(ldr->quo_dirs == NULL) {
-        farr_free(FData, ldr->inc_dirs);
-        farr_free(FData, ldr->sys_dirs);
-        farr_free(FData, ldr->files);
-        return NULL;
+    for(int i = 0; i < DIR_KIND_CNT; i++) {
+        ldr->dirs[i] = farr_new(IncDir, 32);
+        if(ldr->dirs[i] == NULL) {
+            fld_free(ldr);
+            return NULL;
+        }
     }
 
     return ldr;
@@ -111,78 +102,26 @@ void fld_free(Fld_t* ldr) {
         farr_free(FData, ldr->files);
     }
 
-    fld_free_dir_list(ldr->quo_dirs);
-    fld_free_dir_list(ldr->inc_dirs);
-    fld_free_dir_list(ldr->sys_dirs);
+    for(unsigned i = 0; i < DIR_KIND_CNT; i++) {
+        fld_free_dir_list(ldr->dirs[i]);
+    }
 
     xmem_free(ldr);
 }
 
 FldErr fld_add_quote_dir(Fld_t* ldr, const char* path) {
-    FldErr err = fld_add_dir(&(ldr->quo_dirs), path);
-    if(err != FLD_SUCCESS) {
-        return err;
-    }
-
-    IncDir* dir = farr_last_dir(ldr->quo_dirs);
-    // Check if it's a dup in any lower level lists.
-    if(fld_dup_in_lower_list(ldr, dir, DIR_IS_QUO)) {
-        farr_pop_dir(ldr->quo_dirs, NULL);
-        return FLD_DUP_DIR;
-    }
-
-    return FLD_SUCCESS;
+    return fld_add_dir(ldr, path, DIR_IS_QUO);
 }
 
 FldErr fld_add_inc_dir(Fld_t* ldr, const char* path) {
-    FldErr err = fld_add_dir(&(ldr->inc_dirs), path);
-    if(err != FLD_SUCCESS) {
-        return err;
-    }
-
-    IncDir* dir = farr_last_dir(ldr->inc_dirs);
-    // Check if it's a dup in any lower level lists.
-    if(fld_dup_in_lower_list(ldr, dir, DIR_IS_QUO)) {
-        farr_pop_dir(ldr->inc_dirs, NULL);
-        return FLD_DUP_DIR;
-    }
-
-    return FLD_SUCCESS;
+    return fld_add_dir(ldr, path, DIR_IS_INC);
 }
 
 FldErr fld_add_sys_dir(Fld_t* ldr, const char* path) {
-    FldErr err = fld_add_dir(&(ldr->sys_dirs), path);
-    if(err != FLD_SUCCESS) {
-        return err;
-    }
-
-    return FLD_SUCCESS;
+    return fld_add_dir(ldr, path, DIR_IS_SYS);
 }
 
-static FldErr fld_add_dir(IncDir** list, const char* path) {
-    IncDir dir = { 0 };
-    FldErr err = dir_init(&dir, path);
-    if(err != FLD_SUCCESS) {
-        return err;
-    }
-
-    IncDir* ptr = *list;
-    size_t  len = farr_len(ptr);
-
-    if(dir_dup_index(&dir, ptr, len) >= 0) {
-        dir_free(&dir);
-        return FLD_DUP_DIR;
-    }
-
-    ptr = farr_push_dir(ptr, dir);
-    if(ptr == NULL) {
-        dir_free(&dir);
-        return FLD_NO_MEM;
-    }
-    *list = ptr;
-
-    return FLD_SUCCESS;
-}
+// ========= File Loader Functions ========
 
 static void fld_free_dir_list(IncDir* list) {
     if(list == NULL) {
@@ -195,27 +134,44 @@ static void fld_free_dir_list(IncDir* list) {
     farr_free(IncDir, list);
 }
 
-static bool fld_dup_in_lower_list(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
-    size_t len;
-    switch(kind) {
-        case DIR_IS_QUO:
-            len = farr_len(ldr->inc_dirs);
-            if(dir_dup_index(dir, ldr->inc_dirs, len) >= 0) {
-                return true;
-            }
-        case DIR_IS_INC:
-            len = farr_len(ldr->sys_dirs);
-            if(dir_dup_index(dir, ldr->sys_dirs, len) >= 0) {
-                return true;
-            }
-        case DIR_IS_SYS:
-            // Currently nothing below sys to check.
-        default:
-            break;
+static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
+    for(unsigned i = kind; i < DIR_KIND_CNT; i++) {
+        size_t len = farr_len(ldr->dirs[i]);
+        if(dir_dup_index(dir, ldr->dirs[i], len) >= 0) {
+            return true;
+        }
     }
     return false;
 }
 
+static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
+    if(kind >= DIR_KIND_CNT) {
+        return FLD_INVALID_ARG;
+    }
+
+    IncDir dir = { 0 };
+    FldErr err = dir_init(&dir, path);
+    if(err != FLD_SUCCESS) {
+        return err;
+    }
+
+    // Check if it's a dup in any lower level lists.
+    if(fld_is_duplicate(ldr, &dir, kind)) {
+        dir_free(&dir);
+        return FLD_DUP_DIR;
+    }
+
+    IncDir* ptr = farr_push_dir(ldr->dirs[kind], dir);
+    if(ptr == NULL) {
+        dir_free(&dir);
+        return FLD_NO_MEM;
+    }
+    ldr->dirs[kind] = ptr;
+
+    return FLD_SUCCESS;
+}
+
+// ========== Directory Functions =========
 
 static FldErr dir_init(IncDir* dir, const char* path) {
     if(path == NULL) {
@@ -260,6 +216,7 @@ static void dir_free(IncDir* dir) {
     memset(dir, 0, sizeof(IncDir));
 }
 
+// Checks for duplicate directories in kind and above.
 static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len) {
     dev_t dev = dir->fs.dev;
     ino_t ino = dir->fs.ino;
@@ -285,6 +242,8 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
     }
     return -1;
 }
+
+// ============ Path Functions ============
 
 static size_t path_concat_len(const char* path, size_t len) {
     // I only care about trailing slashes.
