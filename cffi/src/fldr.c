@@ -12,12 +12,6 @@
 
 #define PATH_BUFF 8192
 
-#define DIR_IS_QUO 0
-#define DIR_IS_INC 1
-#define DIR_IS_SYS 2
-
-#define DIR_KIND_CNT 3
-
 typedef struct fs_info_s {
     dev_t dev;
     ino_t ino;
@@ -40,10 +34,10 @@ static FldErr  dir_init(IncDir* dir, const char* path);
 static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len);
 static void    dir_free(IncDir* dir);
 
-static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind);
 static void   fld_free_dir_list(IncDir* list);
-static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
-static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
+static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind);
+static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* shadowed);
+static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* shadowed);
 
 static size_t path_concat_len(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
@@ -77,7 +71,7 @@ Fld_t* fld_new(void) {
         return NULL;
     }
 
-    for(int i = 0; i < DIR_KIND_CNT; i++) {
+    for(int i = 0; i < DIR_COUNT_OF_KIND; i++) {
         ldr->dirs[i] = farr_new(IncDir, 32);
         if(ldr->dirs[i] == NULL) {
             fld_free(ldr);
@@ -103,23 +97,23 @@ void fld_free(Fld_t* ldr) {
         farr_free(FData, ldr->files);
     }
 
-    for(unsigned i = 0; i < DIR_KIND_CNT; i++) {
+    for(int i = 0; i < DIR_COUNT_OF_KIND; i++) {
         fld_free_dir_list(ldr->dirs[i]);
     }
 
     xmem_free(ldr);
 }
 
-FldErr fld_add_quote_dir(Fld_t* ldr, const char* path) {
-    return fld_add_dir(ldr, path, DIR_IS_QUO);
+FldErr fld_add_quote_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
+    return fld_add_dir(ldr, path, DIR_KIND_QUOTE, shadowed);
 }
 
-FldErr fld_add_inc_dir(Fld_t* ldr, const char* path) {
-    return fld_add_dir(ldr, path, DIR_IS_INC);
+FldErr fld_add_inc_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
+    return fld_add_dir(ldr, path, DIR_KIND_INC, shadowed);
 }
 
-FldErr fld_add_sys_dir(Fld_t* ldr, const char* path) {
-    return fld_add_dir(ldr, path, DIR_IS_SYS);
+FldErr fld_add_sys_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
+    return fld_add_dir(ldr, path, DIR_KIND_SYS, shadowed);
 }
 
 // ========= File Loader Functions ========
@@ -136,8 +130,8 @@ static void fld_free_dir_list(IncDir* list) {
 }
 
 // Checks for duplicate directories at kind, and kinds of higher value.
-static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
-    for(unsigned i = kind; i < DIR_KIND_CNT; i++) {
+static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind) {
+    for(int i = kind; i < DIR_COUNT_OF_KIND; i++) {
         size_t len = farr_len(ldr->dirs[i]);
         if(dir_dup_index(dir, ldr->dirs[i], len) >= 0) {
             return true;
@@ -148,22 +142,30 @@ static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind)
 
 // Checks for duplicate directories for kinds with a lower value than current kind.
 // If it finds any it sets them to be shadowed.
-static bool fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
+static bool fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* info) {
     bool shadowed = false;
-    for(unsigned i = 0; i < kind; i++) {
+    for(int i = 0; i < kind; i++) {
         size_t  len = farr_len(ldr->dirs[i]);
         ssize_t idx = dir_dup_index(dir, ldr->dirs[i], len);
         if(idx < 0) {
             continue;
         }
-        shadowed                   = true;
-        ldr->dirs[i][idx].shadowed = true;
+        IncDir* dup = &(ldr->dirs[i][idx]);
+        if(info != NULL) {
+            info->kind = i;
+            info->path = dup->path;
+        }
+        shadowed      = true;
+        dup->shadowed = true;
+        // Probably could just return I don't think
+        // any other are possible because I check
+        // on every add directory for duplicates/shadows.
     }
     return shadowed;
 }
 
-static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
-    if(kind >= DIR_KIND_CNT) {
+static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* shadowed) {
+    if(kind >= DIR_COUNT_OF_KIND) {
         return FLD_INVALID_ARG;
     }
 
@@ -187,8 +189,8 @@ static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
     ldr->dirs[kind] = ptr;
 
 
-    if(fld_shadow_duplicate(ldr, &dir, kind)) {
-        return FLD_DIR_SHADOW;
+    if(fld_shadow_duplicate(ldr, &dir, kind, shadowed)) {
+        return FLD_DIR_SHADOWED;
     }
     return FLD_SUCCESS;
 }
