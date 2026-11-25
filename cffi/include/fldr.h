@@ -30,6 +30,9 @@ typedef enum {
 
 // Info on what path that was early added
 // got shadowed by the latest addition.
+// path will only be set for FLD_DIR_SHADOWED
+// path is also only if no other fld operations
+// or performed.
 typedef struct fld_shadow_s {
     const char*  path;
     FldDirKind_t kind;
