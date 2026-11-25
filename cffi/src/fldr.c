@@ -165,10 +165,6 @@ static bool fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, 
 }
 
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* shadowed) {
-    if(kind >= DIR_COUNT_OF_KIND) {
-        return FLD_INVALID_ARG;
-    }
-
     IncDir dir = { 0 };
     FldErr err = dir_init(&dir, path);
     if(err != FLD_SUCCESS) {
