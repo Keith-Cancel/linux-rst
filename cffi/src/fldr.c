@@ -10,7 +10,7 @@
 #include "flex_arr.h"
 #include "xmem.h"
 
-#define PATH_BUFF 8192
+#define PATH_BUFF 4096
 
 typedef struct fs_info_s {
     dev_t dev;
@@ -39,7 +39,8 @@ static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind);
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* shadowed);
 static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* shadowed);
 
-static size_t path_concat_len(const char* path, size_t len);
+static size_t path_rtrim_sep_len(const char* path, size_t len);
+static bool   path_is_absolute(const char* path);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
 
 // clang-format off
@@ -114,6 +115,12 @@ FldErr fld_add_inc_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
 
 FldErr fld_add_sys_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
     return fld_add_dir(ldr, path, DIR_KIND_SYS, shadowed);
+}
+
+void fld_lookup_and_load_quote(Fld_t* ldr, const char* path) {
+}
+
+void fld_lookup_and_load_bracket(Fld_t* ldr, const char* path) {
 }
 
 // ========= File Loader Functions ========
@@ -207,7 +214,7 @@ static FldErr dir_init(IncDir* dir, const char* path) {
     }
 
     dir->raw_len = plen;
-    dir->con_len = path_concat_len(path, plen);
+    dir->con_len = path_rtrim_sep_len(path, plen);
 
     FsInfo info = { 0 };
     FldErr err  = path_get_fs_info(path, dir->con_len, &info);
@@ -266,13 +273,25 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
 }
 
 // ============ Path Functions ============
+// Currently, these functions only handle unix style paths. I have not
+// bothered with windows yet.
 
-static size_t path_concat_len(const char* path, size_t len) {
+// Returns the length of `path` with trailing path separators removed.
+// It will always retain the root/drive etc...
+// So it will never be below 1 so like unix a root path stays "/".
+static size_t path_rtrim_sep_len(const char* path, size_t len) {
     // I only care about trailing slashes.
     while(len > 1 && path[len - 1] == '/') {
         len -= 1;
     }
     return len;
+}
+
+static bool path_is_absolute(const char* path) {
+    if(path == NULL) {
+        return false;
+    }
+    return path[0] == '/';
 }
 
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
