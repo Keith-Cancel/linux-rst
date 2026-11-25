@@ -226,7 +226,8 @@ static FldErr dir_init(IncDir* dir, const char* path) {
         return FLD_NO_MEM;
     }
     memcpy(mem, path, bytes);
-    dir->path = mem;
+    dir->path     = mem;
+    dir->shadowed = false;
     return FLD_SUCCESS;
 }
 
