@@ -33,7 +33,7 @@ typedef struct inc_dir_s {
     FsInfo   fs;
     uint16_t raw_len;
     uint16_t con_len;
-    bool     ignore;
+    bool     shadowed;
 } IncDir;
 
 static FldErr  dir_init(IncDir* dir, const char* path);
@@ -43,7 +43,7 @@ static void    dir_free(IncDir* dir);
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind);
 static void   fld_free_dir_list(IncDir* list);
 static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
-static bool   fld_ignore_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
+static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind);
 
 static size_t path_concat_len(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
@@ -147,19 +147,19 @@ static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind)
 }
 
 // Checks for duplicate directories for kinds with a lower value than current kind.
-// If it finds any it sets them to be ignored.
-static bool fld_ignore_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
-    bool ignored = false;
+// If it finds any it sets them to be shadowed.
+static bool fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, unsigned kind) {
+    bool shadowed = false;
     for(unsigned i = 0; i < kind; i++) {
         size_t  len = farr_len(ldr->dirs[i]);
         ssize_t idx = dir_dup_index(dir, ldr->dirs[i], len);
         if(idx < 0) {
             continue;
         }
-        ignored                  = true;
-        ldr->dirs[i][idx].ignore = true;
+        shadowed                   = true;
+        ldr->dirs[i][idx].shadowed = true;
     }
-    return ignored;
+    return shadowed;
 }
 
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
@@ -176,7 +176,7 @@ static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
     // Check if it's a dup in any lower level lists.
     if(fld_is_duplicate(ldr, &dir, kind)) {
         dir_free(&dir);
-        return FLD_DUP_DIR;
+        return FLD_DIR_DUPLICATE;
     }
 
     IncDir* ptr = farr_push_dir(ldr->dirs[kind], dir);
@@ -187,8 +187,8 @@ static FldErr fld_add_dir(Fld_t* ldr, const char* path, unsigned kind) {
     ldr->dirs[kind] = ptr;
 
 
-    if(fld_ignore_duplicate(ldr, &dir, kind)) {
-        return FLD_IGNORE_DIR;
+    if(fld_shadow_duplicate(ldr, &dir, kind)) {
+        return FLD_DIR_SHADOW;
     }
     return FLD_SUCCESS;
 }
@@ -253,7 +253,7 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
     for(size_t i = 0; i < len; i++) {
         ino_t cur_ino = dir_list[i].fs.ino;
 
-        if(dir_list[i].ignore || cur_ino == 0) {
+        if(dir_list[i].shadowed || cur_ino == 0) {
             continue;
         }
         if(dev != dir_list[i].fs.dev) {
@@ -307,7 +307,7 @@ static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
         }
     }
     if(S_ISDIR(st.st_mode) == 0) {
-        return FLD_NON_DIR;
+        return FLD_PATH_NOT_DIR;
     }
     info->dev = st.st_dev;
     info->ino = st.st_ino;
