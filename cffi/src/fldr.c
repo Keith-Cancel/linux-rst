@@ -1,13 +1,13 @@
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include "fldr.h"
 #include "flex_arr.h"
+#include "util.h"
 #include "xmem.h"
 
 #define PATH_BUFF 4096
@@ -228,7 +228,7 @@ static FldErr dir_init(IncDir* dir, const char* path) {
     if(mem == NULL) {
         return FLD_NO_MEM;
     }
-    memcpy(mem, path, bytes);
+    imem_copy(mem, path, bytes);
     dir->path     = mem;
     dir->shadowed = false;
     return FLD_SUCCESS;
@@ -304,52 +304,19 @@ static bool path_is_absolute(const char* path) {
     return path[0] == '/';
 }
 
-static bool path_join(char* buf, size_t blen, const char* dir, size_t dlen, const char* path) {
-    // Empty dir path nothing to join.
-    if(dlen < 1) {
-        return false;
-    }
-    // The <= compare ensures at least one free byte for the '/'
-    if(blen <= dlen) {
-        // Otherwise too short.
+// Always joins dir + SEP + path + '\0', and stores the result in buff unless there is
+// is not enough space.
+bool path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen) {
+    // Buffer too small
+    if(blen < 2 || dlen > (blen - 2) || plen > (blen - 2 - dlen)) {
         return false;
     }
 
-    // Reserve space for directory
-    char* dst  = buf + dlen;
-    blen      -= dlen;
-
-    // Add slash if there is none.
-    // Otherwise dir is probably root `/`
-    if(dir[dlen - 1] != '/') {
-        *dst  = '/';
-        dst  += 1;
-        blen -= 1;
-    }
-
-    // Trim leading '/' path separators.
-    while(*path == '/') {
-        path++;
-    }
-
-    // Path empty or nothing left to join.
-    if(*path == '\0') {
-        return false;
-    }
-
-    for(size_t i = 0; i < blen; i++) {
-        char c = path[i];
-        dst[i] = c;
-        if(c == '\0') {
-            // Copying at the start caused clang to push/spill
-            // at lot of registers since it does not inline
-            // the memcpy.
-            memcpy(buf, dir, dlen);
-            return true;
-        }
-    }
-    // Buffer space ran out.
-    return false;
+    buf  = imem_copy(buf, dir, dlen);
+    *buf = '/';
+    buf  = imem_copy(buf + 1, path, plen);
+    *buf = '\0';
+    return true;
 }
 
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
@@ -359,8 +326,7 @@ static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
     if(len > (sizeof(buff) - 1)) {
         return FLD_PATH_TOO_LONG;
     }
-    memcpy(buff, path, len);
-    buff[len] = '\0';
+    *((char*)imem_copy(buff, path, len)) = '\0';
 
     struct stat st = { 0 };
     if(stat(buff, &st) < 0) {
