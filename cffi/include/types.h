@@ -3,10 +3,23 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/types.h>
+#include <limits.h>
 
-typedef size_t  usz;
-typedef ssize_t isz;
+// Check standard integer types for one that match usize max
+#if defined(SIZE_MAX) && (SIZE_MAX == USHRT_MAX)
+typedef short isz;
+#elif defined(SIZE_MAX) && (SIZE_MAX == UINT_MAX)
+typedef int isz;
+#elif defined(SIZE_MAX) && (SIZE_MAX == ULONG_MAX)
+typedef long isz;
+#elif defined(SIZE_MAX) && defined(ULLONG_MAX) && (SIZE_MAX == ULLONG_MAX)
+typedef long long isz;
+#else
+// Guess fall back to ptrdiff.
+typedef ptrdiff_t isz;
+#endif
+
+typedef size_t usz;
 
 typedef int8_t  i8;
 typedef int16_t i16;
@@ -17,6 +30,9 @@ typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+
+typedef intptr_t  iptr;
+typedef uintptr_t uptr;
 
 typedef unsigned short ushort;
 typedef unsigned       uint;
@@ -33,8 +49,8 @@ typedef union buffer_4k_u {
     i64 i64[4096 / sizeof(i64)];
 
     char          char_c[4096];
-    unsigned char char_s[4096];
-    signed char   char_u[4096];
+    unsigned char char_u[4096];
+    signed char   char_s[4096];
 
     short short_s[4096 / sizeof(short)];
     int   int_s[4096 / sizeof(int)];
@@ -44,10 +60,19 @@ typedef union buffer_4k_u {
     uint   int_u[4096 / sizeof(uint)];
     ulong  long_u[4096 / sizeof(ulong)];
 
+    void* ptr[4096 / sizeof(void*)];
+
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
     max_align_t align[4096 / sizeof(max_align_t)];
 #endif
 } Buff4k_t;
 
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+_Static_assert((isz)-1 < 0, "isz must be signed");
+_Static_assert(sizeof(isz) == sizeof(size_t), "isz width must match size_t");
+_Static_assert(_Alignof(isz) == _Alignof(size_t), "isz alignment must match size_t");
+
+_Static_assert(sizeof(Buff4k_t) == 4096, "Buff4k_t is not 4096 bytes");
+#endif
 
 #endif
