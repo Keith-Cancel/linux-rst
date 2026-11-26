@@ -315,8 +315,7 @@ static bool path_join(char* buf, size_t blen, const char* dir, size_t dlen, cons
         return false;
     }
 
-    // Copy directory over
-    memcpy(buf, dir, dlen);
+    // Reserve space for directory
     char* dst  = buf + dlen;
     blen      -= dlen;
 
@@ -342,6 +341,10 @@ static bool path_join(char* buf, size_t blen, const char* dir, size_t dlen, cons
         char c = path[i];
         dst[i] = c;
         if(c == '\0') {
+            // Copying at the start caused clang to push/spill
+            // at lot of registers since it does not inline
+            // the memcpy.
+            memcpy(buf, dir, dlen);
             return true;
         }
     }
