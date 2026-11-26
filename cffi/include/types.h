@@ -1,5 +1,5 @@
-#ifndef MY_TYPES_AND_TYPE_DEFS_HEADER_H
-#define MY_TYPES_AND_TYPE_DEFS_HEADER_H
+#ifndef MY_TYPE_DEFS_HEADER_H
+#define MY_TYPE_DEFS_HEADER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -13,24 +13,32 @@
     #define PRIiISZ "hi"
     #define SCNdISZ "hd"
     #define SCNiISZ "hi"
+    #define ISZ_MIN SHRT_MIN
+    #define ISZ_MAX SHRT_MAX
 #elif defined(SIZE_MAX) && (SIZE_MAX == UINT_MAX)
     typedef int isz;
     #define PRIdISZ "d"
     #define PRIiISZ "i"
     #define SCNdISZ "d"
     #define SCNiISZ "i"
+    #define ISZ_MIN INT_MIN
+    #define ISZ_MAX INT_MAX
 #elif defined(SIZE_MAX) && (SIZE_MAX == ULONG_MAX)
     typedef long isz;
     #define PRIdISZ "ld"
     #define PRIiISZ "li"
     #define SCNdISZ "ld"
     #define SCNiISZ "li"
+    #define ISZ_MIN LONG_MIN
+    #define ISZ_MAX LONG_MAX
 #elif defined(SIZE_MAX) && defined(ULLONG_MAX) && (SIZE_MAX == ULLONG_MAX)
     typedef long long isz;
     #define PRIdISZ "lld"
     #define PRIiISZ "lli"
     #define SCNdISZ "lld"
     #define SCNiISZ "lli"
+    #define ISZ_MIN LLONG_MIN
+    #define ISZ_MAX LLONG_MAX
 #else
     // Guess fall back to ptrdiff.
     typedef ptrdiff_t isz;
@@ -38,6 +46,8 @@
     #define PRIiISZ "ti"
     #define SCNdISZ "td"
     #define SCNiISZ "ti"
+    #define ISZ_MIN PTRDIFF_MIN
+    #define ISZ_MAX PTRDIFF_MAX
 #endif
 // clang-format on
 
