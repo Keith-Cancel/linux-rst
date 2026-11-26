@@ -6,18 +6,40 @@
 #include <limits.h>
 
 // Check standard integer types for one that match usize max
+// clang-format off
 #if defined(SIZE_MAX) && (SIZE_MAX == USHRT_MAX)
-typedef short isz;
+    typedef short isz;
+    #define PRIdISZ "hd"
+    #define PRIiISZ "hi"
+    #define SCNdISZ "hd"
+    #define SCNiISZ "hi"
 #elif defined(SIZE_MAX) && (SIZE_MAX == UINT_MAX)
-typedef int isz;
+    typedef int isz;
+    #define PRIdISZ "d"
+    #define PRIiISZ "i"
+    #define SCNdISZ "d"
+    #define SCNiISZ "i"
 #elif defined(SIZE_MAX) && (SIZE_MAX == ULONG_MAX)
-typedef long isz;
+    typedef long isz;
+    #define PRIdISZ "ld"
+    #define PRIiISZ "li"
+    #define SCNdISZ "ld"
+    #define SCNiISZ "li"
 #elif defined(SIZE_MAX) && defined(ULLONG_MAX) && (SIZE_MAX == ULLONG_MAX)
-typedef long long isz;
+    typedef long long isz;
+    #define PRIdISZ "lld"
+    #define PRIiISZ "lli"
+    #define SCNdISZ "lld"
+    #define SCNiISZ "lli"
 #else
-// Guess fall back to ptrdiff.
-typedef ptrdiff_t isz;
+    // Guess fall back to ptrdiff.
+    typedef ptrdiff_t isz;
+    #define PRIdISZ "td"
+    #define PRIiISZ "ti"
+    #define SCNdISZ "td"
+    #define SCNiISZ "ti"
 #endif
+// clang-format on
 
 typedef size_t usz;
 
