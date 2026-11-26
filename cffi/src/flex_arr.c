@@ -8,14 +8,14 @@
 // | padding | cap | len | DATA[0]..DATA[CAP-1] |
 // +---------+-----+-----+----------------------+
 
-static inline void* flex_arr_alloc(size_t capacity, size_t element_size, size_t align, size_t len) {
+static inline void* flex_arr_alloc(usz capacity, usz element_size, usz align, usz len) {
     // Make sure it's a power of 2
     if(align == 0 || (align & (align - 1)) != 0) {
         return NULL;
     }
-    size_t max_align = farr_max_align(align);
-    size_t extra_spc = farr_ext_space(align);
-    size_t bytes;
+    usz max_align = farr_max_align(align);
+    usz extra_spc = farr_ext_space(align);
+    usz bytes;
     if(usz_checked_mul(element_size, capacity, &bytes)) {
         return NULL;
     }
@@ -29,25 +29,25 @@ static inline void* flex_arr_alloc(size_t capacity, size_t element_size, size_t 
     }
     char* start = mem + extra_spc;
     // Write capacity and length.
-    memcpy(start - USZ_SZ_ALIGN, &len, sizeof(size_t));
-    memcpy(start - (2 * USZ_SZ_ALIGN), &capacity, sizeof(size_t));
+    memcpy(start - USZ_SZ_ALIGN, &len, sizeof(usz));
+    memcpy(start - (2 * USZ_SZ_ALIGN), &capacity, sizeof(usz));
     return start;
 }
 
 
-void* farr_new_ext(size_t capacity, size_t element_size, size_t align) {
+void* farr_new_ext(usz capacity, usz element_size, usz align) {
     return flex_arr_alloc(capacity, element_size, align, 0);
 }
 
-void* farr_expand(void* arr, size_t element_size, size_t align) {
+void* farr_expand(void* arr, usz element_size, usz align) {
     if(arr == NULL) {
         return NULL;
     }
-    size_t len     = farr_len(arr);
-    size_t old_cap = farr_capacity(arr);
-    old_cap        = old_cap < 8 ? 8 : old_cap;
+    usz len     = farr_len(arr);
+    usz old_cap = farr_capacity(arr);
+    old_cap     = old_cap < 8 ? 8 : old_cap;
     // Try to increase by 50%
-    size_t new_cap = old_cap >> 1;
+    usz new_cap = old_cap >> 1;
     if(usz_checked_add(new_cap, old_cap, &new_cap)) {
         return NULL;
     }
@@ -57,18 +57,18 @@ void* farr_expand(void* arr, size_t element_size, size_t align) {
         return NULL;
     }
     // Copy over the data.
-    size_t amt = len * element_size;
+    usz amt = len * element_size;
     memcpy(start, arr, amt);
 
     farr_free_ext(arr, align);
     return start;
 }
 
-void farr_free_ext(void* arr, size_t align) {
+void farr_free_ext(void* arr, usz align) {
     if(arr == NULL) {
         return;
     }
-    size_t extra_spc = farr_ext_space(align);
-    char*  ptr       = (char*)arr;
+    usz   extra_spc = farr_ext_space(align);
+    char* ptr       = (char*)arr;
     xmem_free(ptr - extra_spc);
 }
