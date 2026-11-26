@@ -21,13 +21,13 @@
     #define XMEM_ALLOC_INNER   malloc
     #define XMEM_FREE_INNER    free
     #define XMEM_ALIGNED_INNER xmem_aligned_inner
-    static void* xmem_aligned_inner(size_t alignment, size_t size) {
-        size_t msk = alignment - 1;
+    static void* xmem_aligned_inner(usz alignment, usz size) {
+        usz msk = alignment - 1;
         // check if not a power of 2.
         if(alignment == 0 || (alignment & msk) != 0) {
             return NULL;
         }
-        size_t sz = size + msk;
+        usz sz = size + msk;
         // Overflowed.
         if(sz < size) {
             return NULL;
@@ -42,7 +42,7 @@
     #define XMEM_ALLOC_INNER   malloc
     #define XMEM_FREE_INNER    free
     #define XMEM_ALIGNED_INNER xmem_aligned_inner
-    static void* xmem_aligned_inner(size_t alignment, size_t size) {
+    static void* xmem_aligned_inner(usz alignment, usz size) {
         if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
             return NULL;
         }
@@ -64,11 +64,11 @@ static xmem_alloc_fn   s_xmem_alloc_fn   = XMEM_ALLOC_INNER;
 static xmem_aligned_fn s_xmem_aligned_fn = XMEM_ALIGNED_INNER;
 static xmem_free_fn    s_xmem_free_fn    = XMEM_FREE_INNER;
 
-void* xmem_alloc(size_t size) {
+void* xmem_alloc(usz size) {
     return s_xmem_alloc_fn(size);
 }
 
-void* xmem_aligned(size_t alignment, size_t size) {
+void* xmem_aligned(usz alignment, usz size) {
     return s_xmem_aligned_fn(alignment, size);
 }
 
