@@ -4,7 +4,8 @@
 #include <stddef.h>
 
 // Mainly because I am annoyed that a memcpy with variable len does not want inline.
-// Also unlike memcpy the return value is: dst + len;
+// Also unlike memcpy the return value is: dst + len
+// Mainly want a small function.
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
 static __attribute__((always_inline)) inline void* imemcpy(void* dst, const void* src, size_t len) {
     // clang-format off
