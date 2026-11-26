@@ -119,7 +119,23 @@ FldErr fld_add_sys_dir(Fld_t* ldr, const char* path, FldShadow_t* shadowed) {
 void fld_lookup_and_load_quote(Fld_t* ldr, const char* path) {
 }
 
-void fld_lookup_and_load_bracket(Fld_t* ldr, const char* path) {
+void fld_lookup_and_load_bracket(Fld_t* ldr, const char* path, usz path_len) {
+    if(path_is_absolute(path, path_len)) {}
+
+    Buff4k_t buf;
+    for(int k = DIR_KIND_INC; k < DIR_COUNT_OF_KIND; k++) {
+        IncDir* list = ldr->dirs[k];
+        usz     len  = farr_len(list);
+        for(usz i = 0; i < len; i++) {
+            IncDir* d = &(list[i]);
+            if(d->shadowed) {
+                continue;
+            }
+            if(!path_join_raw(buf.char_c, sizeof(buf), d->path, d->con_len, path, path_len)) {
+                continue;
+            }
+        }
+    }
 }
 
 // ========= File Loader Functions ========
