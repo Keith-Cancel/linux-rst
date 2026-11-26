@@ -10,8 +10,6 @@
 #include "util.h"
 #include "xmem.h"
 
-#define PATH_BUFF 4096
-
 typedef struct fs_info_s {
     dev_t dev;
     ino_t ino;
@@ -210,7 +208,7 @@ static FldErr dir_init(IncDir* dir, const char* path) {
         path = ".";
         plen = 1;
     }
-    if(plen > (PATH_BUFF - 1)) {
+    if(plen > (sizeof(Buff4k_t) - 1)) {
         return FLD_PATH_TOO_LONG;
     }
 
@@ -324,14 +322,14 @@ static bool path_join_raw(char* buf, usz blen, const char* dir, usz dlen, const 
 static FldErr path_get_fs_info(const char* path, usz len, FsInfo* info) {
     // Larger than linuxs PATH_MAX so should be large enough
     // for most any path out there.
-    char buff[PATH_BUFF];
+    Buff4k_t buff;
     if(len > (sizeof(buff) - 1)) {
         return FLD_PATH_TOO_LONG;
     }
-    *((char*)imem_copy(buff, path, len)) = '\0';
+    *((char*)imem_copy(buff.char_c, path, len)) = '\0';
 
     struct stat st = { 0 };
-    if(stat(buff, &st) < 0) {
+    if(stat(buff.char_c, &st) < 0) {
         int err = errno;
         switch(err) {
             case EACCES:
@@ -346,7 +344,7 @@ static FldErr path_get_fs_info(const char* path, usz len, FsInfo* info) {
             case ENOMEM:
                 return FLD_NO_MEM;
             default:
-                fprintf(stderr, "error: Failed to stat() '%s' Errno(%d)\n", buff, err);
+                fprintf(stderr, "error: Failed to stat() '%s' Errno(%d)\n", buff.char_c, err);
                 return FLD_SYS_ERR;
         }
     }
