@@ -21,11 +21,13 @@ rule link
 rule touch
     command = touch $out
 
+build core_hdrs: phony ./include/types.h ./include/util.h
+
 # ~~~~~~ BUILD COMMANDS ~~~~~~~
-build $obj_dir/main.o:       cc ./src/main.c
-build $obj_dir/fldr.o:       cc ./src/fldr.c     | ./include/fldr.h     ./include/flex_arr.h ./include/util.h ./include/xmem.h
-build $obj_dir/flex_arr.o:   cc ./src/flex_arr.c | ./include/flex_arr.h ./include/math_chk.h ./include/xmem.h
-build $obj_dir/xmem.o:       cc ./src/xmem.c     | ./include/xmem.h
+build $obj_dir/main.o:       cc ./src/main.c     | core_hdrs
+build $obj_dir/fldr.o:       cc ./src/fldr.c     | core_hdrs ./include/fldr.h     ./include/flex_arr.h ./include/xmem.h
+build $obj_dir/flex_arr.o:   cc ./src/flex_arr.c | core_hdrs ./include/flex_arr.h ./include/math_chk.h ./include/xmem.h
+build $obj_dir/xmem.o:       cc ./src/xmem.c     | core_hdrs ./include/xmem.h
 
 # ~~~~~~~ LINK COMMANDS ~~~~~~~
 build ./cffi: link $obj_dir/main.o $obj_dir/fldr.o $obj_dir/flex_arr.o $obj_dir/xmem.o
