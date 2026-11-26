@@ -1,9 +1,8 @@
 #ifndef MATH_CHECKED_HEADER_H
 #define MATH_CHECKED_HEADER_H
 
-#include <stddef.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include "types.h"
 
 #if (defined(__GNUC__) || defined(__clang__))
     #define COMPAT_FINLINE_FN static __inline__ __attribute__((__always_inline__))
@@ -42,58 +41,58 @@
 #endif
 
 #ifdef HAS_C23_CHECKED_ARITH
-COMPAT_FINLINE_FN bool usz_checked_add(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool usz_checked_add(usz a, usz b, usz* res) {
     return ckd_add(res, a, b);
 }
-COMPAT_FINLINE_FN bool u32_checked_add(uint32_t a, uint32_t b, uint32_t* res) {
+COMPAT_FINLINE_FN bool u32_checked_add(u32 a, u32 b, u32* res) {
     return ckd_add(res, a, b);
 }
 
-COMPAT_FINLINE_FN bool usz_checked_mul(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool usz_checked_mul(usz a, usz b, usz* res) {
     return ckd_mul(res, a, b);
 }
-COMPAT_FINLINE_FN bool u32_checked_mul(uint32_t a, uint32_t b, uint32_t* res) {
+COMPAT_FINLINE_FN bool u32_checked_mul(u32 a, u32 b, u32* res) {
     return ckd_mul(res, a, b);
 }
 #endif
 
 #if HAS_BUILTIN_CHECKED_ADD
-COMPAT_FINLINE_FN bool usz_checked_add(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool usz_checked_add(usz a, usz b, usz* res) {
     return __builtin_add_overflow(a, b, res);
 }
-COMPAT_FINLINE_FN bool u32_checked_add(uint32_t a, uint32_t b, uint32_t* res) {
+COMPAT_FINLINE_FN bool u32_checked_add(u32 a, u32 b, u32* res) {
     return __builtin_add_overflow(a, b, res);
 }
 #elif !defined(HAS_C23_CHECKED_ARITH)
-COMPAT_FINLINE_FN bool usz_checked_add(size_t a, size_t b, size_t* res) {
-    size_t sum = a + b;
-    *res       = sum;
+COMPAT_FINLINE_FN bool usz_checked_add(usz a, usz b, usz* res) {
+    usz sum = a + b;
+    *res    = sum;
     return sum < a;
 }
-COMPAT_FINLINE_FN bool u32_checked_add(uint32_t a, uint32_t b, uint32_t* res) {
-    size_t sum = a + b;
-    *res       = sum;
+COMPAT_FINLINE_FN bool u32_checked_add(u32 a, u32 b, u32* res) {
+    usz sum = a + b;
+    *res    = sum;
     return sum < a;
 }
 #endif
 
 
 #ifdef HAS_BUILTIN_CHECKED_MUL
-COMPAT_FINLINE_FN bool usz_checked_mul(size_t a, size_t b, size_t* res) {
+COMPAT_FINLINE_FN bool usz_checked_mul(usz a, usz b, usz* res) {
     return __builtin_mul_overflow(a, b, res);
 }
-COMPAT_FINLINE_FN bool u32_checked_mul(uint32_t a, uint32_t b, uint32_t* res) {
+COMPAT_FINLINE_FN bool u32_checked_mul(u32 a, u32 b, u32* res) {
     return __builtin_mul_overflow(a, b, res);
 }
 #elif !defined(HAS_C23_CHECKED_ARITH)
-COMPAT_FINLINE_FN bool usz_checked_mul(size_t a, size_t b, size_t* res) {
-    const size_t USZ_MAX = (size_t)-1;
-    *res                 = a * b;
+COMPAT_FINLINE_FN bool usz_checked_mul(usz a, usz b, usz* res) {
+    const usz USZ_MAX = (usz)-1;
+    *res              = a * b;
     return (b != 0 && a > (USZ_MAX / b));
 }
-COMPAT_FINLINE_FN bool u32_checked_mul(uint32_t a, uint32_t b, uint32_t* res) {
-    const uint32_t U32_MAX = (uint32_t)-1;
-    *res                   = a * b;
+COMPAT_FINLINE_FN bool u32_checked_mul(u32 a, u32 b, u32* res) {
+    const u32 U32_MAX = (u32)-1;
+    *res              = a * b;
     return (b != 0 && a > (U32_MAX / b));
 }
 #endif
