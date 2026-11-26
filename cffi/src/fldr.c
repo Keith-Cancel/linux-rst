@@ -1,11 +1,10 @@
 #include <errno.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "types.h"
 #include "fldr.h"
 #include "flex_arr.h"
 #include "util.h"
@@ -19,32 +18,31 @@ typedef struct fs_info_s {
 } FsInfo;
 
 typedef struct file_data_s {
-    uint8_t* data;
-    size_t   length;
+    u8* data;
+    usz length;
 } FData;
 
 typedef struct inc_dir_s {
-    char*    path;
-    FsInfo   fs;
-    uint16_t raw_len;
-    uint16_t con_len;
-    bool     shadowed;
+    char*  path;
+    FsInfo fs;
+    u16    raw_len;
+    u16    con_len;
+    bool   shadowed;
 } IncDir;
 
-static FldErr  dir_init(IncDir* dir, const char* path);
-static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len);
-static void    dir_free(IncDir* dir);
+static FldErr dir_init(IncDir* dir, const char* path);
+static isz    dir_dup_index(const IncDir* dir, const IncDir* dir_list, usz len);
+static void   dir_free(IncDir* dir);
 
 static void   fld_free_dir_list(IncDir* list);
 static bool   fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind);
 static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* shadowed);
 static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* shadowed);
 
-static size_t path_rtrim_sep_len(const char* path, size_t len);
-static bool   path_is_absolute(const char* path, size_t len);
-static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
-static bool
-path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen);
+static usz    path_rtrim_sep_len(const char* path, usz len);
+static bool   path_is_absolute(const char* path, usz len);
+static FldErr path_get_fs_info(const char* path, usz len, FsInfo* info);
+static bool   path_join_raw(char* buf, usz blen, const char* dir, usz dlen, const char* path, usz plen);
 
 // clang-format off
 //FARR_DEF_POP(IncDir, dir)
@@ -91,9 +89,9 @@ void fld_free(Fld_t* ldr) {
         return;
     }
     if(ldr->files != NULL) {
-        size_t cnt = farr_len(ldr->files);
-        for(size_t i = 0; i < cnt; i++) {
-            uint8_t* data = ldr->files[i].data;
+        usz cnt = farr_len(ldr->files);
+        for(usz i = 0; i < cnt; i++) {
+            u8* data = ldr->files[i].data;
             if(data != NULL) {
                 xmem_free(data);
             }
@@ -132,8 +130,8 @@ static void fld_free_dir_list(IncDir* list) {
     if(list == NULL) {
         return;
     }
-    size_t cnt = farr_len(list);
-    for(size_t i = 0; i < cnt; i++) {
+    usz cnt = farr_len(list);
+    for(usz i = 0; i < cnt; i++) {
         dir_free(&(list[i]));
     }
     farr_free(IncDir, list);
@@ -142,7 +140,7 @@ static void fld_free_dir_list(IncDir* list) {
 // Checks for duplicate directories at kind, and kinds of higher value.
 static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind) {
     for(int i = kind; i < DIR_COUNT_OF_KIND; i++) {
-        size_t len = farr_len(ldr->dirs[i]);
+        usz len = farr_len(ldr->dirs[i]);
         if(dir_dup_index(dir, ldr->dirs[i], len) >= 0) {
             return true;
         }
@@ -155,8 +153,8 @@ static bool fld_is_duplicate(const Fld_t* ldr, const IncDir* dir, int kind) {
 static bool fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* info) {
     bool shadowed = false;
     for(int i = 0; i < kind; i++) {
-        size_t  len = farr_len(ldr->dirs[i]);
-        ssize_t idx = dir_dup_index(dir, ldr->dirs[i], len);
+        usz len = farr_len(ldr->dirs[i]);
+        isz idx = dir_dup_index(dir, ldr->dirs[i], len);
         if(idx < 0) {
             continue;
         }
@@ -207,7 +205,7 @@ static FldErr dir_init(IncDir* dir, const char* path) {
     if(path == NULL) {
         return FLD_INVALID_ARG;
     }
-    size_t plen = strlen(path);
+    usz plen = strlen(path);
     if(plen == 0) {
         path = ".";
         plen = 1;
@@ -226,8 +224,8 @@ static FldErr dir_init(IncDir* dir, const char* path) {
     }
     dir->fs = info;
 
-    size_t bytes = dir->raw_len + 1;
-    char*  mem   = xmem_alloc(bytes);
+    usz   bytes = dir->raw_len + 1;
+    char* mem   = xmem_alloc(bytes);
     if(mem == NULL) {
         return FLD_NO_MEM;
     }
@@ -247,7 +245,7 @@ static void dir_free(IncDir* dir) {
     memset(dir, 0, sizeof(IncDir));
 }
 
-static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t len) {
+static isz dir_dup_index(const IncDir* dir, const IncDir* dir_list, usz len) {
     dev_t dev = dir->fs.dev;
     ino_t ino = dir->fs.ino;
     // Normally this won't be zero, but something like a FUSE fs
@@ -259,7 +257,7 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
         return -1;
     }
     // Search for duplicates
-    for(size_t i = 0; i < len; i++) {
+    for(usz i = 0; i < len; i++) {
         ino_t cur_ino = dir_list[i].fs.ino;
 
         if(dir_list[i].shadowed || cur_ino == 0) {
@@ -282,7 +280,7 @@ static ssize_t dir_dup_index(const IncDir* dir, const IncDir* dir_list, size_t l
 // Returns the length of `path` with trailing path separators removed.
 // It will always retain the root/drive etc...
 // So it will never be below 1 so like unix a root path stays "/".
-static size_t path_rtrim_sep_len(const char* path, size_t len) {
+static usz path_rtrim_sep_len(const char* path, usz len) {
     // The case of a bare `//` thoughts:
     // POSIX says just `//` at the start of a path is implementation
     // defined. However, if I think about concatenating later
@@ -300,7 +298,7 @@ static size_t path_rtrim_sep_len(const char* path, size_t len) {
     return len;
 }
 
-static bool path_is_absolute(const char* path, size_t len) {
+static bool path_is_absolute(const char* path, usz len) {
     if(len == 0 || path == NULL) {
         return false;
     }
@@ -310,8 +308,7 @@ static bool path_is_absolute(const char* path, size_t len) {
 // Joins `dir` + SEP + `path` + `\0` into `buf`.
 // Performs no path normalization or duplicate separator stripping.
 // Returns true on success, or false if the buffer is too small.
-static bool
-path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen) {
+static bool path_join_raw(char* buf, usz blen, const char* dir, usz dlen, const char* path, usz plen) {
     // Buffer too small
     if(blen < 2 || dlen > (blen - 2) || plen > (blen - 2 - dlen)) {
         return false;
@@ -324,7 +321,7 @@ path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* 
     return true;
 }
 
-static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info) {
+static FldErr path_get_fs_info(const char* path, usz len, FsInfo* info) {
     // Larger than linuxs PATH_MAX so should be large enough
     // for most any path out there.
     char buff[PATH_BUFF];
