@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -40,8 +41,10 @@ static FldErr fld_add_dir(Fld_t* ldr, const char* path, int kind, FldShadow_t* s
 static bool   fld_shadow_duplicate(const Fld_t* ldr, const IncDir* dir, int kind, FldShadow_t* shadowed);
 
 static size_t path_rtrim_sep_len(const char* path, size_t len);
-static bool   path_is_absolute(const char* path);
+static bool   path_is_absolute(const char* path, size_t len);
 static FldErr path_get_fs_info(const char* path, size_t len, FsInfo* info);
+static bool
+path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen);
 
 // clang-format off
 //FARR_DEF_POP(IncDir, dir)
@@ -297,16 +300,18 @@ static size_t path_rtrim_sep_len(const char* path, size_t len) {
     return len;
 }
 
-static bool path_is_absolute(const char* path) {
-    if(path == NULL) {
+static bool path_is_absolute(const char* path, size_t len) {
+    if(len == 0 || path == NULL) {
         return false;
     }
     return path[0] == '/';
 }
 
-// Always joins dir + SEP + path + '\0', and stores the result in buff unless there is
-// is not enough space.
-bool path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen) {
+// Joins `dir` + SEP + `path` + `\0` into `buf`.
+// Performs no path normalization or duplicate separator stripping.
+// Returns true on success, or false if the buffer is too small.
+static bool
+path_join_raw(char* buf, size_t blen, const char* dir, size_t dlen, const char* path, size_t plen) {
     // Buffer too small
     if(blen < 2 || dlen > (blen - 2) || plen > (blen - 2 - dlen)) {
         return false;
