@@ -1,13 +1,13 @@
 #ifndef MY_UTIL_FNS_H
 #define MY_UTIL_FNS_H
 
-#include <stddef.h>
+#include "types.h"
 
 // Mainly because I am annoyed that a memcpy with variable len does not want inline.
 // Also unlike memcpy the return value is: dst + len
 // Mainly want a small function.
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
-static __attribute__((always_inline)) inline void* imem_copy(void* dst, const void* src, size_t len) {
+static __attribute__((always_inline)) inline void* imem_copy(void* dst, const void* src, usz len) {
     // clang-format off
     __asm__ __volatile__(
         "rep movsb"
@@ -19,7 +19,7 @@ static __attribute__((always_inline)) inline void* imem_copy(void* dst, const vo
     return dst;
 }
 #else
-static inline void* imem_copy(void* dst, const void* src, size_t len) {
+static inline void* imem_copy(void* dst, const void* src, usz len) {
     unsigned char*       d = dst;
     const unsigned char* s = src;
     // I want small not massive function, clang otherwise seems to explode
@@ -27,7 +27,7 @@ static inline void* imem_copy(void* dst, const void* src, size_t len) {
         #pragma clang loop vectorize(disable) interleave(disable) unroll(disable)
     #endif
     // Backwards copy seems to reduce instruction count by 1 on gcc
-    for(size_t i = len; i > 0; i--) {
+    for(usz i = len; i > 0; i--) {
         d[i - 1] = s[i - 1];
     }
     return d + len;
