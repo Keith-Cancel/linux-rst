@@ -7,7 +7,7 @@
 // Also unlike memcpy the return value is: dst + len
 // Mainly want a small function.
 #if (defined(__GNUC__) || defined(__clang__)) && defined(__x86_64__)
-static __attribute__((always_inline)) inline void* imemcpy(void* dst, const void* src, size_t len) {
+static __attribute__((always_inline)) inline void* imem_copy(void* dst, const void* src, size_t len) {
     // clang-format off
     __asm__ __volatile__(
         "rep movsb"
@@ -19,7 +19,7 @@ static __attribute__((always_inline)) inline void* imemcpy(void* dst, const void
     return dst;
 }
 #else
-static inline void* imemcpy(void* dst, const void* src, size_t len) {
+static inline void* imem_copy(void* dst, const void* src, size_t len) {
     unsigned char*       d = dst;
     const unsigned char* s = src;
     // I want small not massive function, clang otherwise seems to explode
