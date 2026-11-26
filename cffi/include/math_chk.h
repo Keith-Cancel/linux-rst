@@ -10,7 +10,7 @@
 #elif defined(_MSC_VER)
     #define COMPAT_FINLINE_FN static __forceinline
 #else
-    #define COMPAT_FINLINE_FN static inlinec
+    #define COMPAT_FINLINE_FN static inline
 #endif
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)
